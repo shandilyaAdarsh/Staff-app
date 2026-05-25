@@ -7,21 +7,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 
-// ---------------------------------------------------------------------------
-// Demo Providers (self-contained)
-// ---------------------------------------------------------------------------
-
-final demoRealtimeStateProvider =
-    StateProvider<String>((ref) => 'connected');
-
-final demoReplayProgressProvider =
-    StateProvider<double>((ref) => 0.47);
-
-final demoPendingOpsProvider =
-    StateProvider<int>((ref) => 3);
-
-final demoFailedOpsProvider =
-    StateProvider<int>((ref) => 1);
+import '../state/realtime_providers.dart';
+import '../../../../core/network/realtime_sync_manager.dart';
 
 // ---------------------------------------------------------------------------
 // Model for timeline events
@@ -71,10 +58,11 @@ class RealtimeStatusScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final connectionState = ref.watch(demoRealtimeStateProvider);
-    final replayProgress = ref.watch(demoReplayProgressProvider);
-    final pendingOps = ref.watch(demoPendingOpsProvider);
-    final failedOps = ref.watch(demoFailedOpsProvider);
+    final realtimeState = ref.watch(realtimeStateProvider);
+    final connectionState = realtimeState.connectionState.name;
+    final replayProgress = realtimeState.replayProgress ?? 0.0;
+    final pendingOps = ref.watch(pendingOpsCountProvider);
+    final failedOps = ref.watch(failedOpsCountProvider);
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final surfaceColor =
@@ -226,8 +214,8 @@ class RealtimeStatusScreen extends ConsumerWidget {
                   color: AppColors.primary,
                   onPressed: () {
                     HapticFeedback.mediumImpact();
-                    ref.read(demoRealtimeStateProvider.notifier).state =
-                        'connected';
+                    ref.read(realtimeSyncManagerProvider).connectLocal();
+                    ref.read(realtimeStateProvider.notifier).simulateReconnect();
                   },
                 ),
               ),
@@ -747,14 +735,29 @@ class _SimulationPanel extends ConsumerWidget {
             children: states.map((s) {
               final (label, color, icon) = s;
               final current =
-                  ref.watch(demoRealtimeStateProvider);
+                  ref.watch(realtimeStateProvider).connectionState.name;
               final isActive = current == label;
               return GestureDetector(
                 onTap: () {
                   HapticFeedback.selectionClick();
-                  ref
-                      .read(demoRealtimeStateProvider.notifier)
-                      .state = label;
+                  final notifier = ref.read(realtimeStateProvider.notifier);
+                  switch (label) {
+                    case 'connected':
+                      notifier.simulateReconnect();
+                      break;
+                    case 'reconnecting':
+                      notifier.simulateDisconnect();
+                      break;
+                    case 'replaying':
+                      notifier.simulateReplay();
+                      break;
+                    case 'degraded':
+                      notifier.simulateDegraded();
+                      break;
+                    case 'critical':
+                      notifier.simulateCritical();
+                      break;
+                  }
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),

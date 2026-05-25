@@ -7,4 +7,7 @@ abstract class TablesRepository {
   Stream<List<RestaurantTable>> watchTables();
   Future<void> mergeTables(List<String> sourceTableIds, String targetTableId);
   Future<void> splitTable(String tableId, List<Map<String, dynamic>> splitPartitions);
+
+  Future<void> applyRemoteTableUpdate(RestaurantTable table);
+  Future<void> applyRemoteTableDelete(String tableId);
 }

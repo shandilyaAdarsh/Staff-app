@@ -30,6 +30,18 @@ class OrdersRepositoryImpl implements OrdersRepository {
   }
 
   @override
+  Future<void> applyRemoteOrderUpdate(Order order) async {
+    await local.cacheOrder(order.toDto());
+  }
+
+  @override
+  Future<void> applyRemoteOrderDelete(String orderId) async {
+    final current = await local.getCachedOrders();
+    final filtered = current.where((dto) => dto.id != orderId).toList();
+    await local.cacheOrders(filtered);
+  }
+
+  @override
   Stream<List<Order>> watchActiveOrders() {
     return local.watchCachedOrders().map((list) {
       return list
