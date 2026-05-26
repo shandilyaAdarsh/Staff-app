@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/runtime/realtime_transport_provider.dart';
 import '../../core/runtime/realtime_transport.dart';
+import '../../core/runtime/projection_recovery_coordinator.dart';
 import '../../features/orders/providers/orders_providers.dart';
 import '../../features/orders/data/dtos/order_dto.dart';
 import '../../features/orders/data/mappers/order_mapper.dart';
@@ -355,7 +356,14 @@ class RealtimeSyncManager {
   // ── Sequence verification & delta recovery ────────────────────────────────
 
   Future<void> _processSyncEvent(SyncEvent event) async {
-    // 1. Idempotency check
+    // 1. Double-safeguard: Idempotency check via sequence number boundary
+    if (event.sequenceNumber < _expectedSequenceNumber) {
+      debugPrint(
+          '[SYNC] Idempotency/sequence screen: ${event.sequenceNumber} < $_expectedSequenceNumber. Ignoring.');
+      return;
+    }
+
+    // 2. Idempotency check via explicit transaction keys
     if (_processedKeys.contains(event.idempotencyKey)) {
       debugPrint(
           '[SYNC] Screened out duplicate event with key: ${event.idempotencyKey}');
@@ -363,26 +371,29 @@ class RealtimeSyncManager {
     }
     _processedKeys.add(event.idempotencyKey);
 
-    // 2. Sequence verification
+    // 3. Sequence verification & delta recovery
     if (event.sequenceNumber > _expectedSequenceNumber) {
       final gapStart = _expectedSequenceNumber;
       final gapEnd = event.sequenceNumber - 1;
       debugPrint(
           '[SYNC] GAP DETECTED: expected $_expectedSequenceNumber, got ${event.sequenceNumber}. '
-          'Fetching deltas from $gapStart to $gapEnd');
+          'Initiating delta sync replay from $gapStart to $gapEnd');
+      
+      // Auto self-healing on major gap/divergence detection
+      try {
+        ref.read(projectionRecoveryCoordinatorProvider).executeRecovery(branchId: 'branch_default');
+      } catch (e) {
+        debugPrint('[SYNC] Recovery coordinator trigger failed: $e');
+      }
+
       await _fetchDeltaSync(gapStart, gapEnd);
       _expectedSequenceNumber = event.sequenceNumber + 1;
-    } else if (event.sequenceNumber < _expectedSequenceNumber) {
-      debugPrint(
-          '[SYNC] Out of order message. Sequence ${event.sequenceNumber} < $_expectedSequenceNumber. Ignoring.');
-      return;
     } else {
       _expectedSequenceNumber = event.sequenceNumber + 1;
     }
 
-    // 3. Yield to OperationalRuntimeBridge for validation (Epoch, Deduplication, Sequence, Branch)
-    // Removed direct state mutation here to enforce strictly validated projection rebuild architecture.
-    debugPrint('[SYNC] Processing sync event: ${event.type}');
+    // 4. Yield to OperationalRuntimeBridge for validation (Epoch, Deduplication, Sequence, Branch)
+    debugPrint('[SYNC] Processing sync event payload: type=${event.type} seq=${event.sequenceNumber}');
   }
 
   Future<void> _fetchDeltaSync(int startSeq, int endSeq) async {
