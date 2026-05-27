@@ -6,8 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/runtime/realtime_transport_provider.dart';
 import '../../core/runtime/realtime_transport.dart';
-<<<<<<< HEAD
-=======
 import '../../core/runtime/projection_recovery_coordinator.dart';
 import '../../features/orders/providers/orders_providers.dart';
 import '../../features/orders/data/dtos/order_dto.dart';
@@ -17,7 +15,6 @@ import '../../features/tables/data/dtos/table_dto.dart';
 import '../../features/tables/data/mappers/table_mapper.dart';
 import '../../features/waiter_calls/presentation/state/waiter_calls_providers.dart';
 import '../../features/waiter_calls/domain/entities/waiter_call.dart';
->>>>>>> 2280b19aad2a137535210eb05a1d1d2bbec144af
 import '../../features/realtime/presentation/state/realtime_providers.dart';
 import '../../features/realtime/domain/entities/realtime_state_model.dart';
 
@@ -390,18 +387,6 @@ class RealtimeSyncManager {
       final gapStart = _expectedSequenceNumber;
       final gapEnd = event.sequenceNumber - 1;
       debugPrint(
-<<<<<<< HEAD
-        '[SYNC] GAP DETECTED: expected $_expectedSequenceNumber, got ${event.sequenceNumber}. '
-        'Fetching deltas from $gapStart to $gapEnd',
-      );
-      await _fetchDeltaSync(gapStart, gapEnd);
-      _expectedSequenceNumber = event.sequenceNumber + 1;
-    } else if (event.sequenceNumber < _expectedSequenceNumber) {
-      debugPrint(
-        '[SYNC] Out of order message. Sequence ${event.sequenceNumber} < $_expectedSequenceNumber. Ignoring.',
-      );
-      return;
-=======
           '[SYNC] GAP DETECTED: expected $_expectedSequenceNumber, got ${event.sequenceNumber}. '
           'Initiating delta sync replay from $gapStart to $gapEnd');
       
@@ -414,7 +399,6 @@ class RealtimeSyncManager {
 
       await _fetchDeltaSync(gapStart, gapEnd);
       _expectedSequenceNumber = event.sequenceNumber + 1;
->>>>>>> 2280b19aad2a137535210eb05a1d1d2bbec144af
     } else {
       _expectedSequenceNumber = event.sequenceNumber + 1;
     }
