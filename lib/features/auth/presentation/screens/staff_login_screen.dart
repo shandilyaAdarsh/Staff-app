@@ -35,9 +35,10 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
 
   Future<void> _triggerLogin() async {
     final success = await ref.read(authNotifierProvider.notifier).loginWithPIN(_pinCode);
-    if (success && mounted) {
+    if (!context.mounted) return;
+    if (success) {
       context.go('/shift-start');
-    } else if (mounted) {
+    } else {
       setState(() {
         _pinCode = '';
       });
@@ -153,7 +154,8 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
                       onPressed: () async {
                         // Mock biometric bypass for testing convenience
                         await ref.read(authNotifierProvider.notifier).loginWithPIN('1234');
-                        if (mounted) context.go('/shift-start');
+                        if (!context.mounted) return;
+                        context.go('/shift-start');
                       },
                     ),
                     OutlinedButton(

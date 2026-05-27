@@ -231,7 +231,7 @@ class _ShiftDashboardScreenState extends ConsumerState<ShiftDashboardScreen>
 
   Widget _buildMetricsRow(BuildContext context, ShiftMetrics metrics, bool isDark) {
     return SizedBox(
-      height: 90,
+      height: 120,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),

@@ -186,7 +186,8 @@ class _ShiftStartScreenState extends ConsumerState<ShiftStartScreen> {
                     ),
                     onPressed: () async {
                       await ref.read(authNotifierProvider.notifier).startShift(_selectedRole, _selectedSection);
-                      if (mounted) context.go('/tables');
+                      if (!context.mounted) return;
+                      context.go('/tables');
                     },
                     child: const Text(
                       'START ACTIVE SHIFT',

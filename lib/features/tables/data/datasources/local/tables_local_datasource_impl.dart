@@ -15,16 +15,38 @@ class TablesLocalDatasourceImpl implements TablesLocalDatasource {
     // Seed initial broadcast from cache
     final initial = _readFromPrefs();
     _controller.add(initial);
+    
+    // Automatically save initial tables if there are none in prefs
+    if (_prefs.getString(_key) == null) {
+      cacheTables(initial);
+    }
+  }
+
+  List<TableDto> _generateInitialTables() {
+    return List.generate(15, (index) {
+      final id = (index + 1).toString();
+      int capacity = 4;
+      if (index % 3 == 0) capacity = 2;
+      if (index % 5 == 0) capacity = 6;
+      
+      return TableDto(
+        id: id,
+        label: id,
+        capacity: capacity,
+        status: 'available',
+      );
+    });
   }
 
   List<TableDto> _readFromPrefs() {
     final raw = _prefs.getString(_key);
-    if (raw == null) return [];
+    if (raw == null) return _generateInitialTables();
     try {
       final decoded = jsonDecode(raw) as List;
+      if (decoded.isEmpty) return _generateInitialTables();
       return decoded.map((e) => TableDto.fromJson(e as Map<String, dynamic>)).toList();
     } catch (_) {
-      return [];
+      return _generateInitialTables();
     }
   }
 
@@ -53,7 +75,8 @@ class TablesLocalDatasourceImpl implements TablesLocalDatasource {
   }
 
   @override
-  Stream<List<TableDto>> watchCachedTables() {
-    return _controller.stream;
+  Stream<List<TableDto>> watchCachedTables() async* {
+    yield await getCachedTables();
+    yield* _controller.stream;
   }
 }

@@ -77,31 +77,33 @@ class _OrganizationSelectionScreenState extends ConsumerState<OrganizationSelect
               const SizedBox(height: 24),
               
               // Recent / Quick Access Header
-              Text(
-                'Recent Access Tenants',
-                style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold, letterSpacing: 1),
-              ),
-              const SizedBox(height: 8),
-              
-              // Recent selections mock card
-              Card(
-                color: isDark ? AppColors.darkSurface : Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+              if (notifier.mockOrganizations.isNotEmpty) ...[
+                Text(
+                  'Recent Access Tenants',
+                  style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold, letterSpacing: 1),
                 ),
-                child: ListTile(
-                  leading: const Icon(Icons.history_rounded, color: AppColors.primary),
-                  title: Text(notifier.mockOrganizations[0].name),
-                  subtitle: const Text('Last synced: 2 hours ago'),
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () {
-                    notifier.selectOrganization(notifier.mockOrganizations[0]);
-                    context.go('/branch-select');
-                  },
+                const SizedBox(height: 8),
+                
+                // Recent selections mock card
+                Card(
+                  color: isDark ? AppColors.darkSurface : Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+                  ),
+                  child: ListTile(
+                    leading: const Icon(Icons.history_rounded, color: AppColors.primary),
+                    title: Text(notifier.mockOrganizations[0].name),
+                    subtitle: const Text('Last synced: 2 hours ago'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () {
+                      notifier.selectOrganization(notifier.mockOrganizations[0]);
+                      context.go('/branch-select');
+                    },
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
+              ],
               
               // Full Tenant List
               Text(

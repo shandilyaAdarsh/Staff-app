@@ -97,18 +97,18 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen> {
     );
   }
 
-  void _showSeatAllocationDialog(String id, int guestCount, bool isWalkIn) {
-    final tablesState = ref.read(tableGridNotifierProvider).value;
-    if (tablesState == null) return;
+  Future<void> _showSeatAllocationDialog(String id, int guestCount, bool isWalkIn) async {
+    final tablesState = await ref.read(tableGridNotifierProvider.future);
+    if (!mounted) return;
 
     // Filter compatible tables (capacity >= guestCount and status available/cleaning)
     final compatibleTables = tablesState.tables
         .where((t) => t.capacity >= guestCount && (t.status == TableStatus.available || t.status == TableStatus.cleaning))
         .toList();
 
-    showDialog<void>(
+    await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text('Seat Allocation (Party of $guestCount)'),
         content: compatibleTables.isEmpty
             ? const Text('No compatible tables available right now. Please clean or free up a table.')
@@ -117,7 +117,7 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen> {
                 child: ListView.builder(
                   shrinkWrap: true,
                   itemCount: compatibleTables.length,
-                  itemBuilder: (context, index) {
+                  itemBuilder: (itemContext, index) {
                     final table = compatibleTables[index];
                     return Card(
                       child: ListTile(
@@ -133,8 +133,8 @@ class _ReservationsScreenState extends ConsumerState<ReservationsScreen> {
                             }
                             // Also update table status on the grid optimistically
                             await ref.read(tableGridNotifierProvider.notifier).updateStatus(table.id, TableStatus.occupied);
-                            if (context.mounted) {
-                              Navigator.pop(context);
+                            if (dialogContext.mounted) {
+                              Navigator.pop(dialogContext);
                             }
                           },
                           style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white),

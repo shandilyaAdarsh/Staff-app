@@ -1,4 +1,5 @@
 // lib/features/auth/presentation/screens/session_lock_screen.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,6 +16,21 @@ class SessionLockScreen extends ConsumerStatefulWidget {
 
 class _SessionLockScreenState extends ConsumerState<SessionLockScreen> {
   String _pinCode = '';
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   void _onKeyPress(String val) {
     if (_pinCode.length >= 4) return;
@@ -65,6 +81,7 @@ class _SessionLockScreenState extends ConsumerState<SessionLockScreen> {
 
     final hours = duration.inHours.toString().padLeft(2, '0');
     final minutes = (duration.inMinutes % 60).toString().padLeft(2, '0');
+    final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : Colors.grey[100],
@@ -104,7 +121,7 @@ class _SessionLockScreenState extends ConsumerState<SessionLockScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildShiftStat('Shift Time', '$hours:$minutes', Icons.timer_outlined, theme),
+                      _buildShiftStat('Shift Time', '$hours:$minutes:$seconds', Icons.timer_outlined, theme),
                       _buildShiftStat('Active Role', staff.role.name.toUpperCase(), Icons.assignment_ind_outlined, theme),
                     ],
                   ),

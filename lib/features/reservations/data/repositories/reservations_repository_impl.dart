@@ -138,13 +138,15 @@ class ReservationsRepositoryImpl implements ReservationsRepository {
   // ━━━━━━━━━━━━━━━━━━━━━━ RUNTIME INTEGRATION ━━━━━━━━━━━━━━━━━━━━━━
 
   @override
-  Stream<List<Reservation>> watchReservations() {
-    return _reservationsController.stream;
+  Stream<List<Reservation>> watchReservations() async* {
+    yield await getReservations();
+    yield* _reservationsController.stream;
   }
 
   @override
-  Stream<List<WaitlistEntry>> watchWaitlist() {
-    return _waitlistController.stream;
+  Stream<List<WaitlistEntry>> watchWaitlist() async* {
+    yield await getWaitlist();
+    yield* _waitlistController.stream;
   }
 
   @override

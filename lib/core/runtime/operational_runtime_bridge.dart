@@ -279,52 +279,7 @@ class OperationalRuntimeBridge {
     }
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━ PRESENCE DISPATCH ━━━━━━━━━━━━━━━━━━━━━━
 
-  /// Route a validated presence update through PresenceGovernanceRuntime.
-  void _dispatchPresenceUpdate(RuntimeEvent event) {
-    final governance = _ref.read(presenceGovernanceRuntimeProvider);
-
-    final result = governance.applyPresenceUpdate(
-      idempotencyKey: event.idempotencyKey,
-      branchId: event.branchId,
-      epochId: event.epochId,
-      payload: event.payload,
-    );
-
-    if (!result.isAccepted) {
-      debugPrint(
-          '[OperationalRuntimeBridge] Presence update rejected: '
-          '${result.outcome} reason=${result.reason}');
-    }
-    // Projection publication is handled by PresenceGovernanceRuntime
-    // via the onProjectionChanged callback registered in activateSession().
-  }
-
-  /// Route a validated presence delete through PresenceGovernanceRuntime.
-  void _dispatchPresenceDelete(RuntimeEvent event) {
-    final staffId = event.payload['staffId'] as String?;
-    if (staffId == null) {
-      debugPrint(
-          '[OperationalRuntimeBridge] Presence delete: missing staffId');
-      return;
-    }
-
-    final governance = _ref.read(presenceGovernanceRuntimeProvider);
-
-    final result = governance.applyPresenceDelete(
-      idempotencyKey: event.idempotencyKey,
-      branchId: event.branchId,
-      epochId: event.epochId,
-      staffId: staffId,
-    );
-
-    if (!result.isAccepted) {
-      debugPrint(
-          '[OperationalRuntimeBridge] Presence delete rejected: '
-          '${result.outcome} reason=${result.reason}');
-    }
-  }
 
   // ━━━━━━━━━━━━━━━━━━━━━━ EVENT TYPE MAPPING ━━━━━━━━━━━━━━━━━━━━━━
 

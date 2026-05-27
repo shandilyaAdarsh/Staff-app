@@ -524,133 +524,135 @@ class NavigationShellLayout extends ConsumerWidget {
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 16),
-                  child: Text(
-                    'Quick Access',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w900),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4, bottom: 16),
+                    child: Text(
+                      'Quick Access',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleLarge
+                          ?.copyWith(fontWeight: FontWeight.w900),
+                    ),
                   ),
-                ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _QuickAccessTile(
-                        icon: Icons.support_agent_rounded,
-                        label: 'Waiter Calls',
-                        color: AppColors.primary,
-                        onTap: () {
-                          Navigator.pop(context);
-                          context.push('/waiter-calls');
-                        },
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _QuickAccessTile(
+                          icon: Icons.support_agent_rounded,
+                          label: 'Waiter Calls',
+                          color: AppColors.primary,
+                          onTap: () {
+                            Navigator.pop(context);
+                            context.push('/waiter-calls');
+                          },
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _QuickAccessTile(
-                        icon: Icons.delivery_dining_rounded,
-                        label: 'Kitchen Ready',
-                        color: AppColors.success,
-                        onTap: () {
-                          Navigator.pop(context);
-                          context.push('/kitchen/ready');
-                        },
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _QuickAccessTile(
+                          icon: Icons.delivery_dining_rounded,
+                          label: 'Kitchen Ready',
+                          color: AppColors.success,
+                          onTap: () {
+                            Navigator.pop(context);
+                            context.push('/kitchen/ready');
+                          },
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _QuickAccessTile(
-                        icon: Icons.timer_off_rounded,
-                        label: 'Delayed Tickets',
-                        color: AppColors.error,
-                        onTap: () {
-                          Navigator.pop(context);
-                          context.push('/kitchen/delayed');
-                        },
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _QuickAccessTile(
+                          icon: Icons.timer_off_rounded,
+                          label: 'Delayed Tickets',
+                          color: AppColors.error,
+                          onTap: () {
+                            Navigator.pop(context);
+                            context.push('/kitchen/delayed');
+                          },
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _QuickAccessTile(
-                        icon: Icons.account_balance_wallet_rounded,
-                        label: 'Pending Bills',
-                        color: AppColors.secondary,
-                        onTap: () {
-                          Navigator.pop(context);
-                          context.push('/billing/pending');
-                        },
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _QuickAccessTile(
+                          icon: Icons.account_balance_wallet_rounded,
+                          label: 'Pending Bills',
+                          color: AppColors.secondary,
+                          onTap: () {
+                            Navigator.pop(context);
+                            context.push('/billing/pending');
+                          },
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _QuickAccessTile(
-                        icon: Icons.schedule_rounded,
-                        label: 'My Shift',
-                        color: AppColors.primary,
-                        onTap: () {
-                          Navigator.pop(context);
-                          context.push('/shift/dashboard');
-                        },
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _QuickAccessTile(
+                          icon: Icons.schedule_rounded,
+                          label: 'My Shift',
+                          color: AppColors.primary,
+                          onTap: () {
+                            Navigator.pop(context);
+                            context.push('/shift/dashboard');
+                          },
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _QuickAccessTile(
-                        icon: Icons.groups_rounded,
-                        label: 'Staff Presence',
-                        color: AppColors.success,
-                        onTap: () {
-                          Navigator.pop(context);
-                          context.push('/staff/presence');
-                        },
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _QuickAccessTile(
+                          icon: Icons.groups_rounded,
+                          label: 'Staff Presence',
+                          color: AppColors.success,
+                          onTap: () {
+                            Navigator.pop(context);
+                            context.push('/staff/presence');
+                          },
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _QuickAccessTile(
-                        icon: Icons.crisis_alert_rounded,
-                        label: 'Alerts',
-                        color: AppColors.error,
-                        onTap: () {
-                          Navigator.pop(context);
-                          context.push('/manager/alerts');
-                        },
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _QuickAccessTile(
+                          icon: Icons.crisis_alert_rounded,
+                          label: 'Alerts',
+                          color: AppColors.error,
+                          onTap: () {
+                            Navigator.pop(context);
+                            context.push('/manager/alerts');
+                          },
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _QuickAccessTile(
-                        icon: Icons.person_rounded,
-                        label: 'My Profile',
-                        color: AppColors.secondary,
-                        onTap: () {
-                          Navigator.pop(context);
-                          context.push('/profile');
-                        },
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _QuickAccessTile(
+                          icon: Icons.person_rounded,
+                          label: 'My Profile',
+                          color: AppColors.secondary,
+                          onTap: () {
+                            Navigator.pop(context);
+                            context.push('/profile');
+                          },
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-              ],
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
             ),
           ),
         );
@@ -659,7 +661,7 @@ class NavigationShellLayout extends ConsumerWidget {
   }
 }
 
-class _QuickAccessTile extends StatelessWidget {
+class _QuickAccessTile extends StatefulWidget {
   final IconData icon;
   final String label;
   final Color color;
@@ -673,32 +675,92 @@ class _QuickAccessTile extends StatelessWidget {
   });
 
   @override
+  State<_QuickAccessTile> createState() => _QuickAccessTileState();
+}
+
+class _QuickAccessTileState extends State<_QuickAccessTile> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.92).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.25)),
+    return GestureDetector(
+      onTapDown: (_) => _controller.forward(),
+      onTapUp: (_) {
+        _controller.reverse();
+        widget.onTap();
+      },
+      onTapCancel: () => _controller.reverse(),
+      child: AnimatedBuilder(
+        animation: _scaleAnimation,
+        builder: (context, child) => Transform.scale(
+          scale: _scaleAnimation.value,
+          child: child,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                widget.color.withValues(alpha: 0.15),
+                widget.color.withValues(alpha: 0.05),
+              ],
             ),
-          ],
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: widget.color.withValues(alpha: 0.3), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: widget.color.withValues(alpha: 0.15),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: widget.color.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(widget.icon, color: widget.color, size: 28),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                widget.label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: widget.color,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

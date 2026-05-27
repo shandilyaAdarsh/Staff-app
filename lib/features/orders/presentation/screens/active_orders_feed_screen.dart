@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/order.dart';
 import '../../providers/orders_providers.dart';
+import '../../../auth/presentation/state/auth_notifier.dart';
+import '../../../auth/domain/entities/staff_member.dart';
 
 enum OrderSlaStatus { safe, stage1, stage2, stage3 }
 
@@ -91,8 +93,12 @@ class _ActiveOrdersFeedScreenState extends ConsumerState<ActiveOrdersFeedScreen>
   @override
   Widget build(BuildContext context) {
     final repository = ref.watch(ordersRepositoryProvider);
+    final authState = ref.watch(authNotifierProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    final role = authState.loggedInStaff?.role;
+    final canModify = role == StaffRole.waiter || role == StaffRole.manager;
 
     return Scaffold(
       appBar: AppBar(
@@ -170,7 +176,7 @@ class _ActiveOrdersFeedScreenState extends ConsumerState<ActiveOrdersFeedScreen>
                               delegate: SliverChildBuilderDelegate(
                                 (context, index) {
                                   final order = orders[index];
-                                  return _buildOrderCard(order, theme, isDark);
+                                  return _buildOrderCard(order, theme, isDark, canModify);
                                 },
                                 childCount: orders.length,
                               ),
@@ -222,7 +228,7 @@ class _ActiveOrdersFeedScreenState extends ConsumerState<ActiveOrdersFeedScreen>
     );
   }
 
-  Widget _buildOrderCard(Order order, ThemeData theme, bool isDark) {
+  Widget _buildOrderCard(Order order, ThemeData theme, bool isDark, bool canModify) {
     final sla = _calculateSla(order);
     final slaColor = _getSlaColor(sla);
     final elapsedMinutes = DateTime.now().difference(order.createdAt).inMinutes;
@@ -276,6 +282,21 @@ class _ActiveOrdersFeedScreenState extends ConsumerState<ActiveOrdersFeedScreen>
                           style: TextStyle(color: slaColor, fontWeight: FontWeight.bold, fontSize: 10),
                         ),
                       ),
+                      if (canModify) ...[
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          onPressed: () => context.push('/tables/${order.tableId}/edit'),
+                          icon: const Icon(Icons.edit_rounded, size: 12),
+                          label: const Text('Modify', style: TextStyle(fontSize: 10)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                            minimumSize: const Size(0, 24),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ],

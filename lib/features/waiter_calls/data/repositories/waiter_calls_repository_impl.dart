@@ -147,8 +147,9 @@ class WaiterCallsRepositoryImpl implements WaiterCallsRepository {
   }
 
   @override
-  Stream<List<WaiterCall>> watchWaiterCalls() {
-    return _streamController.stream;
+  Stream<List<WaiterCall>> watchWaiterCalls() async* {
+    yield await getCachedWaiterCalls();
+    yield* _streamController.stream;
   }
 
   @override
