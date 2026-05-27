@@ -13,7 +13,8 @@ import 'invalidation_coordinator.dart';
 import 'branch_isolation_resolver.dart';
 
 /// Callback type for projection rebuild requests.
-typedef ProjectionRebuildCallback = void Function(List<InvalidationRecord> invalidations);
+typedef ProjectionRebuildCallback =
+    void Function(List<InvalidationRecord> invalidations);
 
 /// Callback type for post-validation event dispatch.
 typedef EventDispatchCallback = Future<void> Function(RuntimeEvent event);
@@ -29,14 +30,11 @@ class RealtimeEventRouter {
   EventDispatchCallback? _dispatchCallback;
 
   RealtimeEventRouter({
-    required RuntimeEpochManager epochManager,
+    required this._epochManager,
     required SequenceValidator sequenceValidator,
-    required InvalidationCoordinator invalidationCoordinator,
-    required BranchIsolationResolver branchIsolationResolver,
-  })  : _epochManager = epochManager,
-        _sequenceValidator = sequenceValidator,
-        _invalidationCoordinator = invalidationCoordinator,
-        _branchIsolationResolver = branchIsolationResolver;
+    required this._invalidationCoordinator,
+    required this._branchIsolationResolver,
+  }) : _sequenceValidator = sequenceValidator;
 
   /// Register the projection rebuild callback.
   void registerRebuildCallback(ProjectionRebuildCallback callback) {
@@ -54,30 +52,40 @@ class RealtimeEventRouter {
 
   /// Route a realtime event through the validation pipeline.
   Future<void> routeEvent(RuntimeEvent event) async {
-    debugPrint('[RealtimeEventRouter] Routing event: ${event.idempotencyKey} type=${event.type} seq=${event.sequenceNumber}');
+    debugPrint(
+      '[RealtimeEventRouter] Routing event: ${event.idempotencyKey} type=${event.type} seq=${event.sequenceNumber}',
+    );
 
     // Step 1: Epoch validation
     if (!_epochManager.isEventEpochValid(event.epochId)) {
-      debugPrint('[RealtimeEventRouter] REJECTED: Stale epoch ${event.epochId}');
+      debugPrint(
+        '[RealtimeEventRouter] REJECTED: Stale epoch ${event.epochId}',
+      );
       return;
     }
 
     // Step 1.5: Branch validation
     if (!_branchIsolationResolver.isEventBranchValid(event)) {
-      debugPrint('[RealtimeEventRouter] REJECTED: Cross-branch state leakage detected. Event branch: ${event.branchId}');
+      debugPrint(
+        '[RealtimeEventRouter] REJECTED: Cross-branch state leakage detected. Event branch: ${event.branchId}',
+      );
       return;
     }
 
     // Step 2: Deduplication
     if (_processedEventIds.contains(event.idempotencyKey)) {
-      debugPrint('[RealtimeEventRouter] REJECTED: Duplicate event ${event.idempotencyKey}');
+      debugPrint(
+        '[RealtimeEventRouter] REJECTED: Duplicate event ${event.idempotencyKey}',
+      );
       return;
     }
 
     // Step 3: Sequence validation
     final validationResult = _sequenceValidator.validate(event);
     if (!validationResult.isAccepted) {
-      debugPrint('[RealtimeEventRouter] REJECTED: Sequence validation failed - ${validationResult.result}');
+      debugPrint(
+        '[RealtimeEventRouter] REJECTED: Sequence validation failed - ${validationResult.result}',
+      );
       return;
     }
 
@@ -94,36 +102,48 @@ class RealtimeEventRouter {
 
     // Step 7: Trigger projection rebuilds
     if (invalidations.isNotEmpty && _rebuildCallback != null) {
-      debugPrint('[RealtimeEventRouter] Triggering ${invalidations.length} projection rebuilds');
+      debugPrint(
+        '[RealtimeEventRouter] Triggering ${invalidations.length} projection rebuilds',
+      );
       _rebuildCallback!(invalidations);
     }
 
-    debugPrint('[RealtimeEventRouter] Event ${event.idempotencyKey} processed successfully');
+    debugPrint(
+      '[RealtimeEventRouter] Event ${event.idempotencyKey} processed successfully',
+    );
   }
 
   /// Route multiple events in batch (for replay or catch-up scenarios).
   Future<void> routeBatch(List<RuntimeEvent> events) async {
-    debugPrint('[RealtimeEventRouter] Routing batch of ${events.length} events');
+    debugPrint(
+      '[RealtimeEventRouter] Routing batch of ${events.length} events',
+    );
 
     final validEvents = <RuntimeEvent>[];
 
     for (final event in events) {
       // Epoch validation
       if (!_epochManager.isEventEpochValid(event.epochId)) {
-        debugPrint('[RealtimeEventRouter] REJECTED (batch): Stale epoch ${event.epochId}');
+        debugPrint(
+          '[RealtimeEventRouter] REJECTED (batch): Stale epoch ${event.epochId}',
+        );
         continue;
       }
 
       // Deduplication
       if (_processedEventIds.contains(event.idempotencyKey)) {
-        debugPrint('[RealtimeEventRouter] REJECTED (batch): Duplicate event ${event.idempotencyKey}');
+        debugPrint(
+          '[RealtimeEventRouter] REJECTED (batch): Duplicate event ${event.idempotencyKey}',
+        );
         continue;
       }
 
       // Sequence validation
       final validationResult = _sequenceValidator.validate(event);
       if (!validationResult.isAccepted) {
-        debugPrint('[RealtimeEventRouter] REJECTED (batch): Sequence validation failed - ${validationResult.result}');
+        debugPrint(
+          '[RealtimeEventRouter] REJECTED (batch): Sequence validation failed - ${validationResult.result}',
+        );
         continue;
       }
 
@@ -137,15 +157,21 @@ class RealtimeEventRouter {
     }
 
     // Batch compute invalidations
-    final invalidations = _invalidationCoordinator.computeBatchInvalidations(validEvents);
+    final invalidations = _invalidationCoordinator.computeBatchInvalidations(
+      validEvents,
+    );
 
     // Trigger projection rebuilds
     if (invalidations.isNotEmpty && _rebuildCallback != null) {
-      debugPrint('[RealtimeEventRouter] Triggering ${invalidations.length} projection rebuilds from batch');
+      debugPrint(
+        '[RealtimeEventRouter] Triggering ${invalidations.length} projection rebuilds from batch',
+      );
       _rebuildCallback!(invalidations);
     }
 
-    debugPrint('[RealtimeEventRouter] Batch processed: ${validEvents.length} valid events');
+    debugPrint(
+      '[RealtimeEventRouter] Batch processed: ${validEvents.length} valid events',
+    );
   }
 
   /// Reset router state (for session end or epoch change).

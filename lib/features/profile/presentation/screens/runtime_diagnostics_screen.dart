@@ -37,12 +37,15 @@ class _RuntimeDiagnosticsScreenState
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final surfaceColor = isDark ? AppColors.darkSurface : Colors.white;
     final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
-    final textPrimary =
-        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary =
-        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    final bgColor =
-        isDark ? AppColors.darkBackground : AppColors.lightBackground;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+    final bgColor = isDark
+        ? AppColors.darkBackground
+        : AppColors.lightBackground;
 
     final healthAsync = ref.watch(operationalHealthProvider);
 
@@ -64,8 +67,10 @@ class _RuntimeDiagnosticsScreenState
       appBar: AppBar(
         title: Text(
           'Runtime Diagnostics',
-          style: AppTextStyles.h3
-              .copyWith(color: textPrimary, fontWeight: FontWeight.bold),
+          style: AppTextStyles.h3.copyWith(
+            color: textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         backgroundColor: surfaceColor,
         elevation: 0,
@@ -80,12 +85,13 @@ class _RuntimeDiagnosticsScreenState
         ),
         actions: [
           healthAsync.whenOrNull(
-            data: (s) => IconButton(
-              icon: const Icon(Icons.ios_share_rounded),
-              tooltip: 'Export',
-              onPressed: () => _export(s),
-            ),
-          ) ?? const SizedBox.shrink(),
+                data: (s) => IconButton(
+                  icon: const Icon(Icons.ios_share_rounded),
+                  tooltip: 'Export',
+                  onPressed: () => _export(s),
+                ),
+              ) ??
+              const SizedBox.shrink(),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Refresh',
@@ -100,11 +106,18 @@ class _RuntimeDiagnosticsScreenState
       body: healthAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
-          child: Text('Diagnostics unavailable: $e',
-              style: AppTextStyles.bodyMedium.copyWith(color: textSecondary)),
+          child: Text(
+            'Diagnostics unavailable: $e',
+            style: AppTextStyles.bodyMedium.copyWith(color: textSecondary),
+          ),
         ),
         data: (snapshot) => _buildBody(
-          context, snapshot, surfaceColor, borderColor, textPrimary, textSecondary,
+          context,
+          snapshot,
+          surfaceColor,
+          borderColor,
+          textPrimary,
+          textSecondary,
         ),
       ),
     );
@@ -141,29 +154,44 @@ class _RuntimeDiagnosticsScreenState
           surfaceColor: surfaceColor,
           borderColor: borderColor,
           children: [
-            _row('Connection', textPrimary,
-                trailing: _StatusPill(
-                  label: s.transport.status.name.toUpperCase(),
-                  color: _transportColor(s.transport.status),
-                )),
+            _row(
+              'Connection',
+              textPrimary,
+              trailing: _StatusPill(
+                label: s.transport.status.name.toUpperCase(),
+                color: _transportColor(s.transport.status),
+              ),
+            ),
             _divider(borderColor),
-            _row('Reconnect Attempts', textPrimary,
-                value:
-                    '${s.transport.reconnectAttempts}/${s.transport.maxReconnectAttempts}',
-                valueColor: s.transport.reconnectAttempts > 0
-                    ? AppColors.warning
-                    : AppColors.success),
+            _row(
+              'Reconnect Attempts',
+              textPrimary,
+              value:
+                  '${s.transport.reconnectAttempts}/${s.transport.maxReconnectAttempts}',
+              valueColor: s.transport.reconnectAttempts > 0
+                  ? AppColors.warning
+                  : AppColors.success,
+            ),
             _divider(borderColor),
-            _row('Messages Received', textPrimary,
-                value: '${s.transport.messagesReceived}'),
+            _row(
+              'Messages Received',
+              textPrimary,
+              value: '${s.transport.messagesReceived}',
+            ),
             _divider(borderColor),
-            _row('Messages Sent', textPrimary,
-                value: '${s.transport.messagesSent}'),
+            _row(
+              'Messages Sent',
+              textPrimary,
+              value: '${s.transport.messagesSent}',
+            ),
             if (s.transport.errorMessage != null) ...[
               _divider(borderColor),
-              _row('Error', textPrimary,
-                  value: s.transport.errorMessage!,
-                  valueColor: AppColors.error),
+              _row(
+                'Error',
+                textPrimary,
+                value: s.transport.errorMessage!,
+                valueColor: AppColors.error,
+              ),
             ],
           ],
         ),
@@ -175,26 +203,36 @@ class _RuntimeDiagnosticsScreenState
           surfaceColor: surfaceColor,
           borderColor: borderColor,
           children: [
-            _row('P50 Latency', textPrimary,
-                value: '${s.transport.p50LatencyMs} ms',
-                valueColor: _pingColor(s.transport.p50LatencyMs)),
+            _row(
+              'P50 Latency',
+              textPrimary,
+              value: '${s.transport.p50LatencyMs} ms',
+              valueColor: _pingColor(s.transport.p50LatencyMs),
+            ),
             _divider(borderColor),
-            _row('P95 Latency', textPrimary,
-                value: '${s.transport.p95LatencyMs} ms',
-                valueColor: _pingColor(s.transport.p95LatencyMs)),
+            _row(
+              'P95 Latency',
+              textPrimary,
+              value: '${s.transport.p95LatencyMs} ms',
+              valueColor: _pingColor(s.transport.p95LatencyMs),
+            ),
             _divider(borderColor),
-            _row('P99 Latency', textPrimary,
-                value: '${s.transport.p99LatencyMs} ms',
-                valueColor: _pingColor(s.transport.p99LatencyMs)),
+            _row(
+              'P99 Latency',
+              textPrimary,
+              value: '${s.transport.p99LatencyMs} ms',
+              valueColor: _pingColor(s.transport.p99LatencyMs),
+            ),
             _divider(borderColor),
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Live Latency Timeline',
-                      style: AppTextStyles.caption
-                          .copyWith(color: textSecondary)),
+                  Text(
+                    'Live Latency Timeline',
+                    style: AppTextStyles.caption.copyWith(color: textSecondary),
+                  ),
                   const SizedBox(height: 12),
                   SizedBox(
                     height: 72,
@@ -205,8 +243,8 @@ class _RuntimeDiagnosticsScreenState
                         final c = h > 50
                             ? AppColors.error
                             : h > 30
-                                ? AppColors.warning
-                                : AppColors.success;
+                            ? AppColors.warning
+                            : AppColors.success;
                         return Container(
                           width: 22,
                           height: h,
@@ -231,21 +269,27 @@ class _RuntimeDiagnosticsScreenState
           surfaceColor: surfaceColor,
           borderColor: borderColor,
           children: [
-            _row('Epoch ID', textPrimary,
-                value: s.epoch.epochId == '__none__'
-                    ? 'No active epoch'
-                    : s.epoch.epochId.substring(0, 8) + '…',
-                valueColor: s.epoch.isValid ? textPrimary : AppColors.error),
+            _row(
+              'Epoch ID',
+              textPrimary,
+              value: s.epoch.epochId == '__none__'
+                  ? 'No active epoch'
+                  : '${s.epoch.epochId.substring(0, 8)}…',
+              valueColor: s.epoch.isValid ? textPrimary : AppColors.error,
+            ),
             _divider(borderColor),
             _row('Branch', textPrimary, value: s.epoch.branchId),
             _divider(borderColor),
             _row('Staff', textPrimary, value: s.epoch.staffId),
             _divider(borderColor),
-            _row('Valid', textPrimary,
-                trailing: _StatusPill(
-                  label: s.epoch.isValid ? 'VALID' : 'INVALID',
-                  color: s.epoch.isValid ? AppColors.success : AppColors.error,
-                )),
+            _row(
+              'Valid',
+              textPrimary,
+              trailing: _StatusPill(
+                label: s.epoch.isValid ? 'VALID' : 'INVALID',
+                color: s.epoch.isValid ? AppColors.success : AppColors.error,
+              ),
+            ),
             _divider(borderColor),
             _row('Age', textPrimary, value: s.epoch.epochAge),
           ],
@@ -258,29 +302,44 @@ class _RuntimeDiagnosticsScreenState
           surfaceColor: surfaceColor,
           borderColor: borderColor,
           children: [
-            _row('Expected Sequence', textPrimary,
-                value: '${s.sequence.expectedSequence}'),
+            _row(
+              'Expected Sequence',
+              textPrimary,
+              value: '${s.sequence.expectedSequence}',
+            ),
             _divider(borderColor),
-            _row('Events Processed', textPrimary,
-                value: '${s.sequence.processedEventCount}'),
+            _row(
+              'Events Processed',
+              textPrimary,
+              value: '${s.sequence.processedEventCount}',
+            ),
             _divider(borderColor),
-            _row('Duplicates Rejected', textPrimary,
-                value: '${s.sequence.duplicatesRejected}',
-                valueColor: s.sequence.duplicatesRejected > 0
-                    ? AppColors.warning
-                    : AppColors.success),
+            _row(
+              'Duplicates Rejected',
+              textPrimary,
+              value: '${s.sequence.duplicatesRejected}',
+              valueColor: s.sequence.duplicatesRejected > 0
+                  ? AppColors.warning
+                  : AppColors.success,
+            ),
             _divider(borderColor),
-            _row('Gaps Detected', textPrimary,
-                value: '${s.sequence.gapsDetected}',
-                valueColor: s.sequence.gapsDetected > 0
-                    ? AppColors.error
-                    : AppColors.success),
+            _row(
+              'Gaps Detected',
+              textPrimary,
+              value: '${s.sequence.gapsDetected}',
+              valueColor: s.sequence.gapsDetected > 0
+                  ? AppColors.error
+                  : AppColors.success,
+            ),
             _divider(borderColor),
-            _row('Stale Rejected', textPrimary,
-                value: '${s.sequence.staleEventsRejected}',
-                valueColor: s.sequence.staleEventsRejected > 0
-                    ? AppColors.warning
-                    : AppColors.success),
+            _row(
+              'Stale Rejected',
+              textPrimary,
+              value: '${s.sequence.staleEventsRejected}',
+              valueColor: s.sequence.staleEventsRejected > 0
+                  ? AppColors.warning
+                  : AppColors.success,
+            ),
           ],
         ),
         const SizedBox(height: 20),
@@ -291,20 +350,29 @@ class _RuntimeDiagnosticsScreenState
           surfaceColor: surfaceColor,
           borderColor: borderColor,
           children: [
-            _row('Registered Projections', textPrimary,
-                value: '${s.projections.registeredProjections}'),
+            _row(
+              'Registered Projections',
+              textPrimary,
+              value: '${s.projections.registeredProjections}',
+            ),
             _divider(borderColor),
-            _row('Currently Rebuilding', textPrimary,
-                value: '${s.projections.currentlyRebuilding}',
-                valueColor: s.projections.currentlyRebuilding > 0
-                    ? AppColors.warning
-                    : AppColors.success),
+            _row(
+              'Currently Rebuilding',
+              textPrimary,
+              value: '${s.projections.currentlyRebuilding}',
+              valueColor: s.projections.currentlyRebuilding > 0
+                  ? AppColors.warning
+                  : AppColors.success,
+            ),
             _divider(borderColor),
-            _row('Stale Projections', textPrimary,
-                value: '${s.projections.staleProjections}',
-                valueColor: s.projections.staleProjections > 0
-                    ? AppColors.warning
-                    : AppColors.success),
+            _row(
+              'Stale Projections',
+              textPrimary,
+              value: '${s.projections.staleProjections}',
+              valueColor: s.projections.staleProjections > 0
+                  ? AppColors.warning
+                  : AppColors.success,
+            ),
           ],
         ),
         const SizedBox(height: 20),
@@ -315,26 +383,41 @@ class _RuntimeDiagnosticsScreenState
           surfaceColor: surfaceColor,
           borderColor: borderColor,
           children: [
-            _row('Mode', textPrimary,
-                trailing: _StatusPill(
-                  label: s.kds.mode.name.toUpperCase(),
-                  color: _kdsColor(s.kds.mode),
-                )),
+            _row(
+              'Mode',
+              textPrimary,
+              trailing: _StatusPill(
+                label: s.kds.mode.name.toUpperCase(),
+                color: _kdsColor(s.kds.mode),
+              ),
+            ),
             _divider(borderColor),
-            _row('Active Tickets', textPrimary,
-                value: '${s.kds.activeTickets}'),
+            _row(
+              'Active Tickets',
+              textPrimary,
+              value: '${s.kds.activeTickets}',
+            ),
             _divider(borderColor),
-            _row('Total Projections', textPrimary,
-                value: '${s.kds.totalProjections}'),
+            _row(
+              'Total Projections',
+              textPrimary,
+              value: '${s.kds.totalProjections}',
+            ),
             _divider(borderColor),
-            _row('Stale Projections', textPrimary,
-                value: '${s.kds.staleProjections}',
-                valueColor: s.kds.staleProjections > 0
-                    ? AppColors.warning
-                    : AppColors.success),
+            _row(
+              'Stale Projections',
+              textPrimary,
+              value: '${s.kds.staleProjections}',
+              valueColor: s.kds.staleProjections > 0
+                  ? AppColors.warning
+                  : AppColors.success,
+            ),
             _divider(borderColor),
-            _row('Events Processed', textPrimary,
-                value: '${s.kds.processedEventCount}'),
+            _row(
+              'Events Processed',
+              textPrimary,
+              value: '${s.kds.processedEventCount}',
+            ),
           ],
         ),
         const SizedBox(height: 20),
@@ -345,25 +428,40 @@ class _RuntimeDiagnosticsScreenState
           surfaceColor: surfaceColor,
           borderColor: borderColor,
           children: [
-            _row('Active Records', textPrimary,
-                value: '${s.presence.activePresenceRecords}'),
+            _row(
+              'Active Records',
+              textPrimary,
+              value: '${s.presence.activePresenceRecords}',
+            ),
             _divider(borderColor),
-            _row('Active Heartbeats', textPrimary,
-                value: '${s.presence.activeHeartbeats}'),
+            _row(
+              'Active Heartbeats',
+              textPrimary,
+              value: '${s.presence.activeHeartbeats}',
+            ),
             _divider(borderColor),
-            _row('Sweep Active', textPrimary,
-                trailing: _StatusPill(
-                  label: s.presence.sweepActive ? 'RUNNING' : 'STOPPED',
-                  color: s.presence.sweepActive
-                      ? AppColors.success
-                      : AppColors.warning,
-                )),
+            _row(
+              'Sweep Active',
+              textPrimary,
+              trailing: _StatusPill(
+                label: s.presence.sweepActive ? 'RUNNING' : 'STOPPED',
+                color: s.presence.sweepActive
+                    ? AppColors.success
+                    : AppColors.warning,
+              ),
+            ),
             _divider(borderColor),
-            _row('Heartbeat TTL', textPrimary,
-                value: '${s.presence.ttlSeconds}s'),
+            _row(
+              'Heartbeat TTL',
+              textPrimary,
+              value: '${s.presence.ttlSeconds}s',
+            ),
             _divider(borderColor),
-            _row('Recent Invalidations', textPrimary,
-                value: '${s.presence.recentInvalidationCount}'),
+            _row(
+              'Recent Invalidations',
+              textPrimary,
+              value: '${s.presence.recentInvalidationCount}',
+            ),
           ],
         ),
         const SizedBox(height: 20),
@@ -374,21 +472,30 @@ class _RuntimeDiagnosticsScreenState
           surfaceColor: surfaceColor,
           borderColor: borderColor,
           children: [
-            _row('Pending', textPrimary,
-                value: '${s.mutations.pendingMutations}',
-                valueColor: s.mutations.pendingMutations > 0
-                    ? AppColors.warning
-                    : AppColors.success),
+            _row(
+              'Pending',
+              textPrimary,
+              value: '${s.mutations.pendingMutations}',
+              valueColor: s.mutations.pendingMutations > 0
+                  ? AppColors.warning
+                  : AppColors.success,
+            ),
             _divider(borderColor),
-            _row('Committed', textPrimary,
-                value: '${s.mutations.committedMutations}',
-                valueColor: AppColors.success),
+            _row(
+              'Committed',
+              textPrimary,
+              value: '${s.mutations.committedMutations}',
+              valueColor: AppColors.success,
+            ),
             _divider(borderColor),
-            _row('Failed', textPrimary,
-                value: '${s.mutations.failedMutations}',
-                valueColor: s.mutations.failedMutations > 0
-                    ? AppColors.error
-                    : AppColors.success),
+            _row(
+              'Failed',
+              textPrimary,
+              value: '${s.mutations.failedMutations}',
+              valueColor: s.mutations.failedMutations > 0
+                  ? AppColors.error
+                  : AppColors.success,
+            ),
           ],
         ),
         const SizedBox(height: 24),
@@ -399,21 +506,26 @@ class _RuntimeDiagnosticsScreenState
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14)),
+              borderRadius: BorderRadius.circular(14),
+            ),
             padding: const EdgeInsets.symmetric(vertical: 16),
             elevation: 0,
           ),
           icon: const Icon(Icons.refresh_rounded),
-          label: const Text('Refresh Now',
-              style: TextStyle(fontWeight: FontWeight.bold)),
+          label: const Text(
+            'Refresh Now',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           onPressed: () {
             HapticFeedback.mediumImpact();
             ref.read(operationalHealthProvider.notifier).refresh();
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Diagnostics refreshed'),
-              duration: Duration(seconds: 1),
-              behavior: SnackBarBehavior.floating,
-            ));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Diagnostics refreshed'),
+                duration: Duration(seconds: 1),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
           },
         ),
         const SizedBox(height: 8),
@@ -433,10 +545,12 @@ class _RuntimeDiagnosticsScreenState
   void _export(RuntimeDiagnosticsSnapshot s) {
     HapticFeedback.heavyImpact();
     Clipboard.setData(ClipboardData(text: s.toReport()));
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('Diagnostics report copied to clipboard'),
-      behavior: SnackBarBehavior.floating,
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Diagnostics report copied to clipboard'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Color _transportColor(TransportHealthStatus status) {
@@ -495,31 +609,41 @@ class _RuntimeDiagnosticsScreenState
     );
   }
 
-  Widget _row(String label, Color textPrimary,
-      {String? value, Color? valueColor, Widget? trailing}) {
+  Widget _row(
+    String label,
+    Color textPrimary, {
+    String? value,
+    Color? valueColor,
+    Widget? trailing,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: AppTextStyles.bodyMedium
-                  .copyWith(color: textPrimary, fontWeight: FontWeight.w500)),
+          Text(
+            label,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: textPrimary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
           if (trailing != null)
             trailing
           else if (value != null)
-            Text(value,
-                style: AppTextStyles.bodyMedium.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: valueColor ?? textPrimary,
-                )),
+            Text(
+              value,
+              style: AppTextStyles.bodyMedium.copyWith(
+                fontWeight: FontWeight.bold,
+                color: valueColor ?? textPrimary,
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _divider(Color color) =>
-      Divider(height: 1, indent: 16, color: color);
+  Widget _divider(Color color) => Divider(height: 1, indent: 16, color: color);
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━ COMPONENTS ━━━━━━━━━━━━━━━━━━━━━━
@@ -565,12 +689,15 @@ class _HeaderCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: AppTextStyles.caption.copyWith(color: labelColor)),
+        Text(label, style: AppTextStyles.caption.copyWith(color: labelColor)),
         const SizedBox(height: 4),
-        Text(value,
-            style: AppTextStyles.bodyMedium
-                .copyWith(fontWeight: FontWeight.bold, color: valueColor)),
+        Text(
+          value,
+          style: AppTextStyles.bodyMedium.copyWith(
+            fontWeight: FontWeight.bold,
+            color: valueColor,
+          ),
+        ),
       ],
     );
   }
@@ -585,29 +712,29 @@ class _HealthBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final (label, subtitle, color, icon) = switch (health) {
       OverallRuntimeHealth.healthy => (
-          'All Systems Operational',
-          'Runtime is healthy. All layers nominal.',
-          AppColors.success,
-          Icons.check_circle_rounded,
-        ),
+        'All Systems Operational',
+        'Runtime is healthy. All layers nominal.',
+        AppColors.success,
+        Icons.check_circle_rounded,
+      ),
       OverallRuntimeHealth.warning => (
-          'Minor Issues Detected',
-          'Some degradation present. Monitor closely.',
-          AppColors.warning,
-          Icons.warning_rounded,
-        ),
+        'Minor Issues Detected',
+        'Some degradation present. Monitor closely.',
+        AppColors.warning,
+        Icons.warning_rounded,
+      ),
       OverallRuntimeHealth.degraded => (
-          'Runtime Degraded',
-          'Significant issues. Operator attention required.',
-          const Color(0xFFF59E0B),
-          Icons.error_rounded,
-        ),
+        'Runtime Degraded',
+        'Significant issues. Operator attention required.',
+        const Color(0xFFF59E0B),
+        Icons.error_rounded,
+      ),
       OverallRuntimeHealth.critical => (
-          'Critical Failure',
-          'Immediate intervention required.',
-          AppColors.error,
-          Icons.dangerous_rounded,
-        ),
+        'Critical Failure',
+        'Immediate intervention required.',
+        AppColors.error,
+        Icons.dangerous_rounded,
+      ),
     };
 
     return Container(
@@ -625,13 +752,20 @@ class _HealthBanner extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label,
-                    style: AppTextStyles.bodyMedium.copyWith(
-                        color: color, fontWeight: FontWeight.w800)),
+                Text(
+                  label,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(subtitle,
-                    style: AppTextStyles.bodySmall
-                        .copyWith(color: color.withValues(alpha: 0.8))),
+                Text(
+                  subtitle,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: color.withValues(alpha: 0.8),
+                  ),
+                ),
               ],
             ),
           ),

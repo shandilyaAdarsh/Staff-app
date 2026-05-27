@@ -19,10 +19,12 @@ class OperationalDashboardScreen extends ConsumerStatefulWidget {
   const OperationalDashboardScreen({super.key});
 
   @override
-  ConsumerState<OperationalDashboardScreen> createState() => _OperationalDashboardScreenState();
+  ConsumerState<OperationalDashboardScreen> createState() =>
+      _OperationalDashboardScreenState();
 }
 
-class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboardScreen> {
+class _OperationalDashboardScreenState
+    extends ConsumerState<OperationalDashboardScreen> {
   final List<String> _simulatedLogs = [];
   late Timer _logTimer;
   final ScrollController _scrollController = ScrollController();
@@ -43,11 +45,15 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
     super.initState();
     _simulatedLogs.add('Websocket Operational stream connected.');
     _simulatedLogs.add('Reconciliation completed: 0 delta events.');
-    
+
     // Simulate active WebSocket traffic ticker
     _logTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
       if (!mounted) return;
-      final timestamp = DateTime.now().toLocal().toString().split(' ')[1].substring(0, 8);
+      final timestamp = DateTime.now()
+          .toLocal()
+          .toString()
+          .split(' ')[1]
+          .substring(0, 8);
       final template = _logTemplates[timer.tick % _logTemplates.length];
       setState(() {
         _simulatedLogs.add('[$timestamp] $template');
@@ -81,7 +87,7 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
     final tablesAsync = ref.watch(tableGridNotifierProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     final branch = authState.selectedBranch;
     final staff = authState.loggedInStaff;
 
@@ -91,13 +97,23 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
     int availableTables = 0;
     int alertTables = 0;
     List<RestaurantTable> alertList = [];
-    
+
     tablesAsync.whenData((state) {
       final tables = state.tables;
       totalTables = tables.length;
-      occupiedTables = tables.where((t) => t.status == TableStatus.occupied || t.status == TableStatus.reserved).length;
-      availableTables = tables.where((t) => t.status == TableStatus.available).length;
-      alertList = tables.where((t) => t.status == TableStatus.needsAttention).toList();
+      occupiedTables = tables
+          .where(
+            (t) =>
+                t.status == TableStatus.occupied ||
+                t.status == TableStatus.reserved,
+          )
+          .length;
+      availableTables = tables
+          .where((t) => t.status == TableStatus.available)
+          .length;
+      alertList = tables
+          .where((t) => t.status == TableStatus.needsAttention)
+          .toList();
       alertTables = alertList.length;
     });
 
@@ -106,7 +122,7 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
     final int preparingCount = preparingTickets.length;
     final int readyCount = readyTickets.length;
     // We don't have completedOrdersCount modeled in the projection yet, so we mock it.
-    final int completedOrdersCount = 0;
+    const int completedOrdersCount = 0;
     // Section load calculations
     Map<String, Map<String, dynamic>> sectionStats = {
       'Patio': {'total': 0, 'occupied': 0, 'range': 'T1-T3'},
@@ -129,7 +145,7 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
         } else {
           section = 'Garden';
         }
-        
+
         sectionStats[section]!['total']++;
         if (table.status != TableStatus.available) {
           sectionStats[section]!['occupied']++;
@@ -144,10 +160,14 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
     }
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor: isDark
+          ? AppColors.darkBackground
+          : AppColors.lightBackground,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        backgroundColor: isDark
+            ? AppColors.darkSurface
+            : AppColors.lightSurface,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -161,7 +181,9 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
               Text(
                 branch.name,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.lightTextSecondary,
                 ),
               ),
           ],
@@ -175,7 +197,9 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
             tooltip: 'Lock Session',
             icon: Icon(
               Icons.lock_outline_rounded,
-              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+              color: isDark
+                  ? AppColors.darkTextPrimary
+                  : AppColors.lightTextPrimary,
             ),
             onPressed: triggerLock,
           ),
@@ -184,7 +208,9 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
             tooltip: 'Logout',
             icon: Icon(
               Icons.logout_rounded,
-              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+              color: isDark
+                  ? AppColors.darkTextPrimary
+                  : AppColors.lightTextPrimary,
             ),
             onPressed: () {
               ref.read(authNotifierProvider.notifier).logout();
@@ -199,7 +225,7 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
           children: [
             // High-visibility runtime diagnostics banner
             const DegradedModeCoordinatorWidget(),
-            
+
             Expanded(
               child: SingleChildScrollView(
                 padding: EdgeInsets.all(AppSpacing.md(context)),
@@ -224,18 +250,23 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
                       completedOrders: completedOrdersCount,
                       isDark: isDark,
                     ),
-                    
+
                     SizedBox(height: AppSpacing.lg(context)),
 
                     // Service Alerts Section
                     if (alertList.isNotEmpty) ...[
-                      _buildServiceAlertsSection(context, alertList, ref, isDark),
+                      _buildServiceAlertsSection(
+                        context,
+                        alertList,
+                        ref,
+                        isDark,
+                      ),
                       SizedBox(height: AppSpacing.lg(context)),
                     ],
 
                     // Section Occupancy
                     _buildSectionOccupancy(context, sectionStats, isDark),
-                    
+
                     SizedBox(height: AppSpacing.lg(context)),
 
                     // Kitchen Status
@@ -246,7 +277,7 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
                       completed: completedOrdersCount,
                       isDark: isDark,
                     ),
-                    
+
                     SizedBox(height: AppSpacing.lg(context)),
 
                     // Activity Feed
@@ -262,7 +293,11 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
   }
 
   // Welcome Section
-  Widget _buildWelcomeSection(BuildContext context, dynamic staff, bool isDark) {
+  Widget _buildWelcomeSection(
+    BuildContext context,
+    dynamic staff,
+    bool isDark,
+  ) {
     final hour = DateTime.now().hour;
     String greeting = 'Good Morning';
     if (hour >= 12 && hour < 17) {
@@ -285,10 +320,10 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: AppColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
+            child: const Icon(
               Icons.person_outline_rounded,
               color: AppColors.primary,
               size: 32,
@@ -301,14 +336,16 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
               children: [
                 Text(
                   '$greeting, ${staff.name}',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 Text(
                   '${_getRoleDisplayName(staff.role)} • Active Shift',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.lightTextSecondary,
                   ),
                 ),
               ],
@@ -351,16 +388,18 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
     required int completedOrders,
     required bool isDark,
   }) {
-    final occupancyRate = totalTables > 0 ? (occupiedTables / totalTables * 100).toInt() : 0;
+    final occupancyRate = totalTables > 0
+        ? (occupiedTables / totalTables * 100).toInt()
+        : 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Overview',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         SizedBox(height: AppSpacing.sm(context)),
         GridView.count(
@@ -425,8 +464,8 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
         color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: highlight 
-              ? AppColors.primary 
+          color: highlight
+              ? AppColors.primary
               : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
           width: highlight ? 2 : 1,
         ),
@@ -441,15 +480,19 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
               Text(
                 title,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.lightTextSecondary,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               Icon(
                 icon,
-                color: highlight 
-                    ? AppColors.primary 
-                    : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                color: highlight
+                    ? AppColors.primary
+                    : (isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary),
                 size: 20,
               ),
             ],
@@ -467,7 +510,9 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
               Text(
                 subtitle,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.lightTextSecondary,
                 ),
               ),
             ],
@@ -491,15 +536,15 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
           children: [
             Text(
               'Service Alerts',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             SizedBox(width: AppSpacing.sm(context)),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
+                color: AppColors.error.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -514,63 +559,67 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
           ],
         ),
         SizedBox(height: AppSpacing.sm(context)),
-        ...alertList.map((table) => Padding(
-          padding: EdgeInsets.only(bottom: AppSpacing.sm(context)),
-          child: Container(
-            padding: EdgeInsets.all(AppSpacing.md(context)),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppColors.error.withOpacity(0.3),
-                width: 1.5,
+        ...alertList.map(
+          (table) => Padding(
+            padding: EdgeInsets.only(bottom: AppSpacing.sm(context)),
+            child: Container(
+              padding: EdgeInsets.all(AppSpacing.md(context)),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.error.withValues(alpha: 0.3),
+                  width: 1.5,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.warning_amber_rounded,
+                      color: AppColors.error,
+                      size: 24,
+                    ),
+                  ),
+                  SizedBox(width: AppSpacing.md(context)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Table ${table.label}',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'Needs attention • Action required',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: isDark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.lightTextSecondary,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => context.push('/tables/${table.id}'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                    ),
+                    child: const Text('View'),
+                  ),
+                ],
               ),
             ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.warning_amber_rounded,
-                    color: AppColors.error,
-                    size: 24,
-                  ),
-                ),
-                SizedBox(width: AppSpacing.md(context)),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Table ${table.label}',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'Needs attention • Action required',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => context.push('/tables/${table.id}'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.error,
-                  ),
-                  child: const Text('View'),
-                ),
-              ],
-            ),
           ),
-        )),
+        ),
       ],
     ).animate().fadeIn(delay: 200.ms, duration: 400.ms);
   }
@@ -586,9 +635,9 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
       children: [
         Text(
           'Section Occupancy',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         SizedBox(height: AppSpacing.sm(context)),
         Container(
@@ -622,23 +671,24 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
                           children: [
                             Text(
                               section,
-                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: Theme.of(context).textTheme.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.bold),
                             ),
                             Text(
                               range,
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                              ),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: isDark
+                                        ? AppColors.darkTextSecondary
+                                        : AppColors.lightTextSecondary,
+                                  ),
                             ),
                           ],
                         ),
                         Text(
                           '$occupied/$total',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
@@ -648,15 +698,15 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
                       child: LinearProgressIndicator(
                         value: percentage,
                         minHeight: 8,
-                        backgroundColor: isDark 
-                            ? AppColors.darkBorder 
+                        backgroundColor: isDark
+                            ? AppColors.darkBorder
                             : AppColors.lightBorder,
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          percentage > 0.8 
-                              ? AppColors.error 
-                              : percentage > 0.5 
-                                  ? AppColors.warning 
-                                  : AppColors.success,
+                          percentage > 0.8
+                              ? AppColors.error
+                              : percentage > 0.5
+                              ? AppColors.warning
+                              : AppColors.success,
                         ),
                       ),
                     ),
@@ -683,9 +733,9 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
       children: [
         Text(
           'Kitchen Status',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         SizedBox(height: AppSpacing.sm(context)),
         Container(
@@ -735,7 +785,9 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
                   icon: Icons.done_all_rounded,
                   label: 'Completed',
                   value: '$completed',
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.lightTextSecondary,
                   isDark: isDark,
                 ),
               ),
@@ -768,7 +820,9 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+            color: isDark
+                ? AppColors.darkTextSecondary
+                : AppColors.lightTextSecondary,
           ),
         ),
       ],
@@ -782,9 +836,9 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
       children: [
         Text(
           'Recent Activity',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         SizedBox(height: AppSpacing.sm(context)),
         Container(
@@ -808,7 +862,9 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
             itemBuilder: (context, index) {
               final log = _simulatedLogs[index];
               IconData icon = Icons.info_outline_rounded;
-              Color iconColor = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+              Color iconColor = isDark
+                  ? AppColors.darkTextSecondary
+                  : AppColors.lightTextSecondary;
 
               if (log.contains('ready')) {
                 icon = Icons.check_circle_outline_rounded;
@@ -829,7 +885,9 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
                     child: Text(
                       log,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.lightTextPrimary,
                       ),
                     ),
                   ),
@@ -866,9 +924,9 @@ class _OperationalDashboardScreenState extends ConsumerState<OperationalDashboar
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

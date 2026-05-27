@@ -69,10 +69,9 @@ class PresenceGovernanceRuntime {
   void Function(List<StaffPresenceRecord>)? _onProjectionChanged;
 
   PresenceGovernanceRuntime({
-    required PresenceHeartbeatManager heartbeatManager,
+    required this._heartbeatManager,
     required PresenceInvalidationCoordinator invalidationCoordinator,
-  })  : _heartbeatManager = heartbeatManager,
-        _invalidationCoordinator = invalidationCoordinator;
+  }) : _invalidationCoordinator = invalidationCoordinator;
 
   // ━━━━━━━━━━━━━━━━━━━━━━ SESSION LIFECYCLE ━━━━━━━━━━━━━━━━━━━━━━
 
@@ -89,12 +88,11 @@ class PresenceGovernanceRuntime {
     _processedKeys.clear();
 
     // Start TTL sweep timer
-    _heartbeatManager.startSweep(
-      onExpired: _handleExpiredSessions,
-    );
+    _heartbeatManager.startSweep(onExpired: _handleExpiredSessions);
 
     debugPrint(
-        '[PresenceGovernanceRuntime] Session activated: branch=$branchId epoch=$epochId');
+      '[PresenceGovernanceRuntime] Session activated: branch=$branchId epoch=$epochId',
+    );
   }
 
   /// Deactivate governance — clears all presence state.
@@ -122,24 +120,31 @@ class PresenceGovernanceRuntime {
     // ── Gate 1: Branch isolation ───────────────────────────────────────────
     if (_activeBranchId != null && branchId != _activeBranchId) {
       debugPrint(
-          '[PresenceGovernanceRuntime] REJECTED (branch): $idempotencyKey '
-          'event=$branchId active=$_activeBranchId');
-      return const PresenceEventResult(PresenceEventOutcome.rejectedBranch,
-          reason: 'cross-branch-presence');
+        '[PresenceGovernanceRuntime] REJECTED (branch): $idempotencyKey '
+        'event=$branchId active=$_activeBranchId',
+      );
+      return const PresenceEventResult(
+        PresenceEventOutcome.rejectedBranch,
+        reason: 'cross-branch-presence',
+      );
     }
 
     // ── Gate 2: Epoch validation ───────────────────────────────────────────
     if (_activeEpochId != null && epochId != _activeEpochId) {
       debugPrint(
-          '[PresenceGovernanceRuntime] REJECTED (epoch): $idempotencyKey');
-      return const PresenceEventResult(PresenceEventOutcome.rejectedEpoch,
-          reason: 'stale-epoch');
+        '[PresenceGovernanceRuntime] REJECTED (epoch): $idempotencyKey',
+      );
+      return const PresenceEventResult(
+        PresenceEventOutcome.rejectedEpoch,
+        reason: 'stale-epoch',
+      );
     }
 
     // ── Gate 3: Idempotency deduplication ─────────────────────────────────
     if (_processedKeys.contains(idempotencyKey)) {
       debugPrint(
-          '[PresenceGovernanceRuntime] REJECTED (duplicate): $idempotencyKey');
+        '[PresenceGovernanceRuntime] REJECTED (duplicate): $idempotencyKey',
+      );
       return const PresenceEventResult(PresenceEventOutcome.rejectedDuplicate);
     }
 
@@ -149,36 +154,40 @@ class PresenceGovernanceRuntime {
       record = StaffPresenceRecord.fromJson(payload);
     } catch (e) {
       debugPrint('[PresenceGovernanceRuntime] REJECTED (parse error): $e');
-      return const PresenceEventResult(PresenceEventOutcome.rejectedDuplicate,
-          reason: 'parse-error');
+      return const PresenceEventResult(
+        PresenceEventOutcome.rejectedDuplicate,
+        reason: 'parse-error',
+      );
     }
 
     // ── Gate 5: Heartbeat TTL validation ──────────────────────────────────
     if (_heartbeatManager.isHeartbeatExpired(record.lastHeartbeat)) {
       debugPrint(
-          '[PresenceGovernanceRuntime] REJECTED (stale heartbeat): '
-          'staffId=${record.staffId} lastHeartbeat=${record.lastHeartbeat}');
+        '[PresenceGovernanceRuntime] REJECTED (stale heartbeat): '
+        'staffId=${record.staffId} lastHeartbeat=${record.lastHeartbeat}',
+      );
       // Invalidate any existing record for this staff member
       _invalidateStaffPresence(record.staffId, reason: 'stale-heartbeat');
       return const PresenceEventResult(
-          PresenceEventOutcome.rejectedStaleHeartbeat,
-          reason: 'heartbeat-ttl-expired');
+        PresenceEventOutcome.rejectedStaleHeartbeat,
+        reason: 'heartbeat-ttl-expired',
+      );
     }
 
     // ── Gate 6: Duplicate session reconciliation ───────────────────────────
     final existing = _presenceStore[record.staffId];
     if (existing != null) {
-      final reconcileResult = _invalidationCoordinator.reconcileDuplicateSession(
-        existing: existing,
-        incoming: record,
-      );
+      final reconcileResult = _invalidationCoordinator
+          .reconcileDuplicateSession(existing: existing, incoming: record);
       if (!reconcileResult.shouldAcceptIncoming) {
         debugPrint(
-            '[PresenceGovernanceRuntime] REJECTED (duplicate session): '
-            'staffId=${record.staffId} reason=${reconcileResult.reason}');
+          '[PresenceGovernanceRuntime] REJECTED (duplicate session): '
+          'staffId=${record.staffId} reason=${reconcileResult.reason}',
+        );
         return PresenceEventResult(
-            PresenceEventOutcome.rejectedDuplicateSession,
-            reason: reconcileResult.reason);
+          PresenceEventOutcome.rejectedDuplicateSession,
+          reason: reconcileResult.reason,
+        );
       }
     }
 
@@ -195,8 +204,9 @@ class PresenceGovernanceRuntime {
     _publishProjection();
 
     debugPrint(
-        '[PresenceGovernanceRuntime] ACCEPTED: staffId=${record.staffId} '
-        'status=${record.status}');
+      '[PresenceGovernanceRuntime] ACCEPTED: staffId=${record.staffId} '
+      'status=${record.status}',
+    );
     return const PresenceEventResult(PresenceEventOutcome.accepted);
   }
 
@@ -226,7 +236,8 @@ class PresenceGovernanceRuntime {
     _invalidateStaffPresence(staffId, reason: 'backend-delete');
 
     debugPrint(
-        '[PresenceGovernanceRuntime] Deleted presence: staffId=$staffId');
+      '[PresenceGovernanceRuntime] Deleted presence: staffId=$staffId',
+    );
     return const PresenceEventResult(PresenceEventOutcome.accepted);
   }
 
@@ -241,8 +252,9 @@ class PresenceGovernanceRuntime {
     required String epochId,
   }) async {
     debugPrint(
-        '[PresenceGovernanceRuntime] Executing reconnect reconciliation: '
-        'branch=$branchId');
+      '[PresenceGovernanceRuntime] Executing reconnect reconciliation: '
+      'branch=$branchId',
+    );
 
     // Invalidate all current projections — they may be stale
     _invalidationCoordinator.invalidateAll(
@@ -262,8 +274,9 @@ class PresenceGovernanceRuntime {
       // Skip expired heartbeats in snapshot
       if (_heartbeatManager.isHeartbeatExpired(record.lastHeartbeat)) {
         debugPrint(
-            '[PresenceGovernanceRuntime] Skipping expired record in snapshot: '
-            '${record.staffId}');
+          '[PresenceGovernanceRuntime] Skipping expired record in snapshot: '
+          '${record.staffId}',
+        );
         continue;
       }
 
@@ -276,8 +289,9 @@ class PresenceGovernanceRuntime {
 
     _publishProjection();
     debugPrint(
-        '[PresenceGovernanceRuntime] Reconciliation complete: '
-        '${_presenceStore.length} active records');
+      '[PresenceGovernanceRuntime] Reconciliation complete: '
+      '${_presenceStore.length} active records',
+    );
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━ TTL EXPIRY HANDLER ━━━━━━━━━━━━━━━━━━━━━━
@@ -286,7 +300,8 @@ class PresenceGovernanceRuntime {
     if (expiredStaffIds.isEmpty) return;
 
     debugPrint(
-        '[PresenceGovernanceRuntime] TTL expiry: ${expiredStaffIds.length} sessions');
+      '[PresenceGovernanceRuntime] TTL expiry: ${expiredStaffIds.length} sessions',
+    );
 
     for (final staffId in expiredStaffIds) {
       _invalidateStaffPresence(staffId, reason: 'heartbeat-ttl-expired');
@@ -306,8 +321,9 @@ class PresenceGovernanceRuntime {
         reason: reason,
       );
       debugPrint(
-          '[PresenceGovernanceRuntime] Invalidated presence: '
-          'staffId=$staffId reason=$reason');
+        '[PresenceGovernanceRuntime] Invalidated presence: '
+        'staffId=$staffId reason=$reason',
+      );
     }
   }
 
@@ -333,7 +349,8 @@ class PresenceGovernanceRuntime {
     required String epochId,
   }) async {
     debugPrint(
-        '[PresenceGovernanceRuntime] Fetching presence snapshot: branch=$branchId');
+      '[PresenceGovernanceRuntime] Fetching presence snapshot: branch=$branchId',
+    );
     // TODO: Replace with real API call
     // GET /staff/presence/snapshot?branchId=$branchId
     await Future.delayed(const Duration(milliseconds: 50));
@@ -341,10 +358,10 @@ class PresenceGovernanceRuntime {
   }
 
   Map<String, dynamic> getStats() => {
-        'activeBranchId': _activeBranchId,
-        'activeEpochId': _activeEpochId,
-        'presenceCount': _presenceStore.length,
-        'processedEventCount': _processedKeys.length,
-        'heartbeatStats': _heartbeatManager.getStats(),
-      };
+    'activeBranchId': _activeBranchId,
+    'activeEpochId': _activeEpochId,
+    'presenceCount': _presenceStore.length,
+    'processedEventCount': _processedKeys.length,
+    'heartbeatStats': _heartbeatManager.getStats(),
+  };
 }

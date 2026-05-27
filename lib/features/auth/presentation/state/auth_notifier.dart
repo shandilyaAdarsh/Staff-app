@@ -33,7 +33,7 @@ class AuthNotifier extends _$AuthNotifier {
   // Preloaded mock data for offline resiliency and simulation
   // Now loaded dynamically from AuthRepository
   List<Organization> _organizations = [];
-  Map<String, List<Branch>> _branches = {};
+  final Map<String, List<Branch>> _branches = {};
 
   void selectOrganization(Organization org) {
     state = state.copyWith(
@@ -56,16 +56,13 @@ class AuthNotifier extends _$AuthNotifier {
 
   Future<bool> loginWithPIN(String pin) async {
     state = state.copyWith(errorMessage: null);
-    
+
     // Check pin credentials against authoritative repository
     final repo = ref.read(authRepositoryProvider);
     final staff = await repo.loginWithPIN(pin);
-    
+
     if (staff != null) {
-      state = state.copyWith(
-        loggedInStaff: staff,
-        isLocked: false,
-      );
+      state = state.copyWith(loggedInStaff: staff, isLocked: false);
       return true;
     } else {
       state = state.copyWith(
@@ -77,7 +74,7 @@ class AuthNotifier extends _$AuthNotifier {
 
   Future<void> startShift(StaffRole role, String section) async {
     if (state.loggedInStaff == null || state.selectedBranch == null) return;
-    
+
     final updatedStaff = state.loggedInStaff!.copyWith(
       role: role,
       section: section,
@@ -105,7 +102,9 @@ class AuthNotifier extends _$AuthNotifier {
         isLocked: false,
       );
     } else {
-      state = state.copyWith(errorMessage: result.errorMessage ?? 'Failed to start shift');
+      state = state.copyWith(
+        errorMessage: result.errorMessage ?? 'Failed to start shift',
+      );
     }
   }
 

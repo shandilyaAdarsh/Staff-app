@@ -19,7 +19,6 @@ import 'operational_runtime_bridge.dart';
 import '../network/realtime_sync_manager.dart';
 import '../../features/auth/presentation/state/auth_notifier.dart';
 import '../../features/auth/presentation/state/auth_state.dart';
-import 'diagnostics/operational_health_publisher.dart';
 
 /// Manages runtime session lifecycle based on auth state.
 class RuntimeLifecycleManager {
@@ -31,22 +30,23 @@ class RuntimeLifecycleManager {
   }
 
   void _initialize() {
-    debugPrint('[RuntimeLifecycleManager] Initializing runtime lifecycle manager');
+    debugPrint(
+      '[RuntimeLifecycleManager] Initializing runtime lifecycle manager',
+    );
 
     // Initialize the operational runtime bridge after the current frame to avoid
     // provider initialization order issues during ProviderScope construction.
     SchedulerBinding.instance.addPostFrameCallback((_) {
       _ref.read(operationalRuntimeBridgeProvider);
-      debugPrint('[RuntimeLifecycleManager] Operational runtime bridge initialized');
+      debugPrint(
+        '[RuntimeLifecycleManager] Operational runtime bridge initialized',
+      );
     });
 
     // Listen to auth state changes
-    _ref.listen<AuthState>(
-      authNotifierProvider,
-      (previous, next) {
-        _handleAuthStateChange(previous, next);
-      },
-    );
+    _ref.listen<AuthState>(authNotifierProvider, (previous, next) {
+      _handleAuthStateChange(previous, next);
+    });
   }
 
   void _handleAuthStateChange(AuthState? previous, AuthState next) {
@@ -74,16 +74,19 @@ class RuntimeLifecycleManager {
       );
 
       // 3. Activate KDS runtime + presence governance via bridge
-      _ref.read(operationalRuntimeBridgeProvider).activateSession(
+      _ref
+          .read(operationalRuntimeBridgeProvider)
+          .activateSession(
             branchId: next.selectedBranch!.id,
             epochId: orchestrator.epochManager.currentEpoch.epochId,
           );
 
       _sessionActive = true;
       debugPrint(
-          '[RuntimeLifecycleManager] Session started: '
-          'branch=${next.selectedBranch!.id} '
-          'epoch=${orchestrator.epochManager.currentEpoch.epochId}');
+        '[RuntimeLifecycleManager] Session started: '
+        'branch=${next.selectedBranch!.id} '
+        'epoch=${orchestrator.epochManager.currentEpoch.epochId}',
+      );
     }
 
     // ── End session when shift ends or logout ─────────────────────────────
@@ -112,7 +115,9 @@ class RuntimeLifecycleManager {
 }
 
 /// Provider for runtime lifecycle manager.
-final runtimeLifecycleManagerProvider = Provider<RuntimeLifecycleManager>((ref) {
+final runtimeLifecycleManagerProvider = Provider<RuntimeLifecycleManager>((
+  ref,
+) {
   final manager = RuntimeLifecycleManager(ref);
   ref.onDispose(() => manager.dispose());
   return manager;
