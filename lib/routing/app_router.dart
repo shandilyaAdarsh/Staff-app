@@ -11,8 +11,6 @@ import '../features/billing/presentation/screens/billing_payment_screen.dart';
 import '../features/kitchen/presentation/screens/kitchen_kds_screen.dart';
 import '../features/auth/presentation/state/auth_notifier.dart';
 import '../features/auth/presentation/state/auth_state.dart';
-import '../features/onboarding/presentation/state/onboarding_notifier.dart';
-import '../features/onboarding/presentation/screens/setup_dashboard_screen.dart';
 import '../features/auth/presentation/screens/splash_screen.dart';
 import '../features/auth/presentation/screens/organization_selection_screen.dart';
 import '../features/auth/presentation/screens/branch_selection_screen.dart';
@@ -72,10 +70,6 @@ class RouterNotifier extends ChangeNotifier {
     );
     _ref.listen<RealtimeStateModel>(
       realtimeStateProvider,
-      (_, next) => notifyListeners(),
-    );
-    _ref.listen(
-      onboardingNotifierProvider,
       (_, next) => notifyListeners(),
     );
   }
@@ -155,24 +149,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         return null;
       }
 
-      // Check Onboarding state
-      final onboardingState = ref.read(onboardingNotifierProvider);
-      
-      // If onboarding is still loading, wait on splash or show loading overlay (letting it stay on login briefly is fine)
-      if (onboardingState is AsyncLoading) {
-        return null;
-      }
-      
-      final isOperational = onboardingState.value?.isOperational ?? true; // Default true to fail-safe into regular flow
-
-      // Onboarding Bypass: If not operational, force redirect to /setup and BYPASS shift validation
-      if (!isOperational) {
-        if (loc != '/setup') {
-          return '/setup';
-        }
-        return null; // Stay on /setup
-      }
-
       if (!authState.isShiftStarted) {
         if (loc != '/shift-start' && loc != '/login' && loc != '/branch-select' && loc != '/org-select') {
           return '/shift-start';
@@ -184,8 +160,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isAuthScreen = loc == '/org-select' ||
           loc == '/branch-select' ||
           loc == '/login' ||
-          loc == '/shift-start' ||
-          loc == '/setup';
+          loc == '/shift-start';
 
       if (isAuthScreen) {
         return '/tables';
@@ -224,11 +199,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/lock',
         name: 'lock',
         builder: (context, state) => const SessionLockScreen(),
-      ),
-      GoRoute(
-        path: '/setup',
-        name: 'setup',
-        builder: (context, state) => const SetupDashboardScreen(),
       ),
       ShellRoute(
         builder: (context, state, child) {
