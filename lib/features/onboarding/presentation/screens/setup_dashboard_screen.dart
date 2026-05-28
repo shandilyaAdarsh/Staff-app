@@ -16,7 +16,7 @@ class SetupDashboardScreen extends ConsumerWidget {
     final authState = ref.watch(authNotifierProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.lightBackground,
       appBar: AppBar(
         title: const Text('Restaurant Setup'),
         actions: [
@@ -87,7 +87,7 @@ class SetupDashboardScreen extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        color: AppColors.surface,
+                        color: AppColors.lightSurface,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                       ),
@@ -113,7 +113,7 @@ class SetupDashboardScreen extends ConsumerWidget {
                           const SizedBox(height: 16),
                           LinearProgressIndicator(
                             value: progress,
-                            backgroundColor: AppColors.background,
+                            backgroundColor: AppColors.lightBackground,
                             valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
                             minHeight: 8,
                             borderRadius: BorderRadius.circular(4),
@@ -221,7 +221,7 @@ class _ChecklistCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: AppColors.surface,
+      color: AppColors.lightSurface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
@@ -231,7 +231,7 @@ class _ChecklistCard extends StatelessWidget {
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         leading: CircleAvatar(
-          backgroundColor: isCompleted ? AppColors.success.withValues(alpha: 0.2) : AppColors.background,
+          backgroundColor: isCompleted ? AppColors.success.withValues(alpha: 0.2) : AppColors.lightBackground,
           child: Icon(
             isCompleted ? Icons.check_circle_rounded : icon,
             color: isCompleted ? AppColors.success : Colors.grey,
