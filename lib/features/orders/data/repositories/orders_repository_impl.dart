@@ -14,13 +14,11 @@ import '../../../../core/network/offline_queue.dart';
 import '../../../../core/runtime/runtime.dart';
 import '../../../auth/presentation/state/auth_notifier.dart';
 import '../datasources/remote/orders_remote_datasource.dart';
-import '../dtos/order_dto.dart';
-
 class OrdersRepositoryImpl implements OrdersRepository {
   final OrdersLocalDatasource local;
   final OrdersRemoteDatasource remote;
   final OfflineQueueManager offlineQueue;
-  final ProviderRef ref;
+  final Ref ref;
 
   OrdersRepositoryImpl({
     required this.local,
@@ -191,10 +189,10 @@ class OrdersRepositoryImpl implements OrdersRepository {
     } else {
       if (currentCached.status != order.status.name) {
         String targetStatus = 'pending';
-        if (order.status == OrderStatus.preparing) targetStatus = 'preparing';
-        else if (order.status == OrderStatus.ready) targetStatus = 'ready';
-        else if (order.status == OrderStatus.completed) targetStatus = 'completed';
-        else if (order.status == OrderStatus.cancelled) targetStatus = 'cancelled';
+        if (order.status == OrderStatus.preparing) { targetStatus = 'preparing'; }
+        else if (order.status == OrderStatus.ready) { targetStatus = 'ready'; }
+        else if (order.status == OrderStatus.completed) { targetStatus = 'completed'; }
+        else if (order.status == OrderStatus.cancelled) { targetStatus = 'cancelled'; }
         
         if (isConnected) {
           try {

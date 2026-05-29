@@ -20,7 +20,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:uuid/uuid.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/network/secure_storage.dart';
 import '../../../../core/network/network_providers.dart';
 import 'entities/kitchen_ticket.dart';
@@ -92,7 +91,7 @@ class KitchenReplayEvent {
 // ━━━━━━━━━━━━━━━━━━━━━━ COORDINATOR ━━━━━━━━━━━━━━━━━━━━━━
 
 class TicketReplayRecoveryCoordinator {
-  final ProviderRef ref;
+  final Ref ref;
 
   TicketReplayRecoveryCoordinator(this.ref);
 

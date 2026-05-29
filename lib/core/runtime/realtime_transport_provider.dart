@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
-import '../config/environment.dart';
 import 'mock/mock_realtime_transport.dart';
 import 'realtime_transport.dart';
 import 'websocket_realtime_transport.dart';

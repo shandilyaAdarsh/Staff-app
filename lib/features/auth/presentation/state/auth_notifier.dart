@@ -7,7 +7,6 @@ import 'auth_state.dart';
 
 import '../../providers/auth_repository_provider.dart';
 import '../../../../core/runtime/runtime.dart';
-import '../../../onboarding/presentation/state/onboarding_notifier.dart';
 
 part 'auth_notifier.g.dart';
 
@@ -63,8 +62,6 @@ class AuthNotifier extends _$AuthNotifier {
 
     if (staff != null) {
       state = state.copyWith(loggedInStaff: staff, isLocked: false);
-      // Hydrate onboarding state for router to determine correct flow
-      await ref.read(onboardingNotifierProvider.notifier).hydrate();
       return true;
     } else {
       state = state.copyWith(
@@ -133,6 +130,5 @@ class AuthNotifier extends _$AuthNotifier {
 
   void logout() {
     state = const AuthState();
-    ref.read(onboardingNotifierProvider.notifier).reset();
   }
 }

@@ -50,7 +50,7 @@ class AuthRepository {
         query = query.eq('branch_id', branchId);
       }
       final response = await query.eq('pin', pin);
-      if (response == null || response.isEmpty) return null;
+      if (response.isEmpty) return null;
 
       final row = response.first;
       return StaffMember(

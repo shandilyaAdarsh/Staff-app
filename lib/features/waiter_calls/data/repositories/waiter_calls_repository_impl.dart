@@ -15,7 +15,7 @@ class WaiterCallsRepositoryImpl implements WaiterCallsRepository {
   final NetworkInfo networkInfo;
   final OfflineQueueManager offlineQueue;
   final WaiterCallsRemoteDatasource remote;
-  final ProviderRef ref;
+  final Ref ref;
   
   final List<WaiterCall> _inMemoryCalls = [];
   final StreamController<List<WaiterCall>> _streamController = StreamController<List<WaiterCall>>.broadcast();

@@ -8,7 +8,6 @@ import '../domain/repositories/orders_repository.dart';
 
 import '../../menu/presentation/state/menu_providers.dart';
 
-import '../../../../core/network/dio_client.dart';
 import '../../../../core/network/network_providers.dart';
 import '../data/datasources/remote/orders_remote_datasource.dart';
 
