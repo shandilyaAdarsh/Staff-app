@@ -195,7 +195,7 @@ class RuntimeSessionHydrator {
         options: Options(
           headers: {
             'Authorization': 'Bearer $token',
-            if (deviceSessionId != null) 'x-device-session-id': deviceSessionId,
+            'x-device-session-id': ?deviceSessionId,
           },
         ),
       );
