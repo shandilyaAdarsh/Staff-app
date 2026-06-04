@@ -1,19 +1,15 @@
 // lib/core/network/realtime_sync_manager.dart
 import 'dart:async';
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/runtime/realtime_transport_provider.dart';
 import '../../core/runtime/realtime_transport.dart';
-import '../../features/orders/providers/orders_providers.dart';
-import '../../features/orders/data/dtos/order_dto.dart';
-import '../../features/orders/data/mappers/order_mapper.dart';
-import '../../features/tables/providers/tables_providers.dart';
-import '../../features/tables/data/dtos/table_dto.dart';
-import '../../features/tables/data/mappers/table_mapper.dart';
-import '../../features/waiter_calls/presentation/state/waiter_calls_providers.dart';
-import '../../features/waiter_calls/domain/entities/waiter_call.dart';
+import '../../core/runtime/projection_recovery_coordinator.dart';
+import '../../core/network/secure_storage.dart';
+import '../../core/network/network_providers.dart';
 import '../../features/realtime/presentation/state/realtime_providers.dart';
 import '../../features/realtime/domain/entities/realtime_state_model.dart';
 
@@ -46,6 +42,8 @@ class RealtimeSyncManager {
   // ── Idempotency & Sequencing ──────────────────────────────────────────────
   final Set<String> _processedKeys = {};
   int _expectedSequenceNumber = 1;
+
+  bool get _isMock => ref.read(repositoryModeProvider) == RepositoryMode.mock;
 
   // ── Transport ────────────────────────────────────────────────────────────
   StreamSubscription<RealtimeTransportMessage>? _transportSubscription;
@@ -83,7 +81,7 @@ class RealtimeSyncManager {
   // ── Constructor ───────────────────────────────────────────────────────────
 
   RealtimeSyncManager(this.ref)
-      : _transport = ref.read(realtimeTransportProvider) {
+    : _transport = ref.read(realtimeTransportProvider) {
     _eventController.stream.listen(_processSyncEvent);
     _transportSubscription = _transport.messages.listen(
       _onTransportMessage,
@@ -109,13 +107,16 @@ class RealtimeSyncManager {
     debugPrint('[SYNC] Connecting to realtime transport...');
     _updateState(RealtimeConnectionState.reconnecting);
 
-    _transport.connect().then((_) {
-      // Optimistically mark connected; the first heartbeat will confirm it.
-      _onConnected();
-    }).catchError((error) {
-      debugPrint('[SYNC] Transport connection exception: $error');
-      _scheduleReconnect();
-    });
+    _transport
+        .connect()
+        .then((_) {
+          // Optimistically mark connected; the first heartbeat will confirm it.
+          _onConnected();
+        })
+        .catchError((error) {
+          debugPrint('[SYNC] Transport connection exception: $error');
+          _scheduleReconnect();
+        });
   }
 
   /// Cleanly shut down the manager (called on app dispose).
@@ -144,12 +145,14 @@ class RealtimeSyncManager {
         return;
       }
 
-      _eventController.add(SyncEvent(
-        idempotencyKey: key,
-        sequenceNumber: seqNum,
-        type: type,
-        payload: payload,
-      ));
+      _eventController.add(
+        SyncEvent(
+          idempotencyKey: key,
+          sequenceNumber: seqNum,
+          type: type,
+          payload: payload,
+        ),
+      );
     } catch (e) {
       debugPrint('[SYNC] Failed parsing WebSocket payload: $e');
     }
@@ -192,7 +195,8 @@ class RealtimeSyncManager {
 
     debugPrint('[SYNC] Received raw transport message: ${message.rawPayload}');
     try {
-      final data = message.json ??
+      final data =
+          message.json ??
           jsonDecode(message.rawPayload) as Map<String, dynamic>;
 
       // Handle heartbeat acknowledgment messages
@@ -201,10 +205,41 @@ class RealtimeSyncManager {
         return;
       }
 
-      receiveRawPayload(data);
+      // ── Map backend EventEnvelope → SyncEvent shape ──────────────────────
+      // Backend sends: { event_id, event_sequence, event_type, payload, ... }
+      // RealtimeSyncManager expects: { idempotencyKey, sequenceNumber, type, payload }
+      final normalized = _normalizeEventEnvelope(data);
+      if (normalized != null) {
+        receiveRawPayload(normalized);
+      }
     } catch (e) {
       debugPrint('[SYNC] Failed decoding message: $e');
     }
+  }
+
+  /// Normalize backend EventEnvelope fields to the canonical SyncEvent shape.
+  /// Returns null if the message is not a recognized operational event.
+  Map<String, dynamic>? _normalizeEventEnvelope(Map<String, dynamic> data) {
+    // Already in canonical shape (legacy / test payloads)
+    if (data.containsKey('idempotencyKey')) return data;
+
+    // Backend EventEnvelope shape
+    final eventId = data['event_id'] as String?;
+    final eventSeq = data['event_sequence'] as int?;
+    final eventType = data['event_type'] as String?;
+    final payload = data['payload'];
+
+    if (eventId == null || eventSeq == null || eventType == null) {
+      debugPrint('[SYNC] Skipping non-operational envelope: $data');
+      return null;
+    }
+
+    return {
+      'idempotencyKey': eventId,
+      'sequenceNumber': eventSeq,
+      'type': eventType,
+      'payload': payload is Map<String, dynamic> ? payload : <String, dynamic>{},
+    };
   }
 
   void _onDisconnected() {
@@ -229,11 +264,14 @@ class RealtimeSyncManager {
 
     _reconnectAttempts++;
     debugPrint(
-        '[SYNC] Reconnect attempt $_reconnectAttempts / $_maxReconnectAttempts');
+      '[SYNC] Reconnect attempt $_reconnectAttempts / $_maxReconnectAttempts',
+    );
 
     if (_reconnectAttempts >= _maxReconnectAttempts) {
       // Max retries exhausted — enter critical state
-      debugPrint('[SYNC] Max reconnect attempts exhausted. Entering CRITICAL state.');
+      debugPrint(
+        '[SYNC] Max reconnect attempts exhausted. Entering CRITICAL state.',
+      );
       _updateState(
         RealtimeConnectionState.critical,
         attempts: _reconnectAttempts,
@@ -243,8 +281,10 @@ class RealtimeSyncManager {
     }
 
     // Determine back-off delay
-    final delayIndex =
-        (_reconnectAttempts - 1).clamp(0, _backoffSchedule.length - 1);
+    final delayIndex = (_reconnectAttempts - 1).clamp(
+      0,
+      _backoffSchedule.length - 1,
+    );
     final delay = _backoffSchedule[delayIndex];
 
     // Move state to reconnecting or degraded depending on attempt count
@@ -269,6 +309,8 @@ class RealtimeSyncManager {
   // ── Heartbeat ─────────────────────────────────────────────────────────────
 
   void _startHeartbeat() {
+    if (_isMock) return; // Do not enforce heartbeat in simulated environments
+    
     _heartbeatTimer?.cancel();
     _heartbeatTimer = Timer.periodic(_heartbeatInterval, (_) {
       _sendHeartbeat();
@@ -287,6 +329,8 @@ class RealtimeSyncManager {
   }
 
   void _startHeartbeatTimeout() {
+    if (_isMock) return;
+    
     _heartbeatTimeoutTimer?.cancel();
     _heartbeatTimeoutTimer = Timer(_heartbeatTimeout, () {
       final elapsed = _lastMessageAt != null
@@ -294,13 +338,15 @@ class RealtimeSyncManager {
           : const Duration(minutes: 10);
       if (elapsed > _heartbeatInterval) {
         debugPrint(
-            '[SYNC] Heartbeat timeout! No message for ${elapsed.inSeconds}s. Triggering silent reconnect.');
+          '[SYNC] Heartbeat timeout! No message for ${elapsed.inSeconds}s. Triggering silent reconnect.',
+        );
         _onSilentConnectionLoss();
       }
     });
   }
 
   void _resetHeartbeatTimeout() {
+    if (_isMock) return;
     _heartbeatTimeoutTimer?.cancel();
   }
 
@@ -341,11 +387,9 @@ class RealtimeSyncManager {
     String? error,
   }) {
     try {
-      ref.read(realtimeStateProvider.notifier).updateConnectionState(
-            connState,
-            attempts: attempts,
-            error: error,
-          );
+      ref
+          .read(realtimeStateProvider.notifier)
+          .updateConnectionState(connState, attempts: attempts, error: error);
     } catch (e) {
       // Provider may not be available in test context
       debugPrint('[SYNC] State update skipped (provider unavailable): $e');
@@ -355,51 +399,102 @@ class RealtimeSyncManager {
   // ── Sequence verification & delta recovery ────────────────────────────────
 
   Future<void> _processSyncEvent(SyncEvent event) async {
-    // 1. Idempotency check
+    // 1. Double-safeguard: Idempotency check via sequence number boundary
+    if (event.sequenceNumber < _expectedSequenceNumber) {
+      debugPrint(
+        '[SYNC] Idempotency/sequence screen: ${event.sequenceNumber} < $_expectedSequenceNumber. Ignoring.',
+      );
+      return;
+    }
+
+    // 2. Idempotency check via explicit transaction keys
     if (_processedKeys.contains(event.idempotencyKey)) {
       debugPrint(
-          '[SYNC] Screened out duplicate event with key: ${event.idempotencyKey}');
+        '[SYNC] Screened out duplicate event with key: ${event.idempotencyKey}',
+      );
       return;
     }
     _processedKeys.add(event.idempotencyKey);
 
-    // 2. Sequence verification
+    // 3. Sequence verification & delta recovery
     if (event.sequenceNumber > _expectedSequenceNumber) {
       final gapStart = _expectedSequenceNumber;
       final gapEnd = event.sequenceNumber - 1;
       debugPrint(
-          '[SYNC] GAP DETECTED: expected $_expectedSequenceNumber, got ${event.sequenceNumber}. '
-          'Fetching deltas from $gapStart to $gapEnd');
+        '[SYNC] GAP DETECTED: expected $_expectedSequenceNumber, got ${event.sequenceNumber}. '
+        'Initiating delta sync replay from $gapStart to $gapEnd',
+      );
+
+      // Auto self-healing on major gap/divergence detection
+      try {
+        await ref
+            .read(projectionRecoveryCoordinatorProvider)
+            .executeRecovery(branchId: 'branch_default');
+      } catch (e) {
+        debugPrint('[SYNC] Recovery coordinator trigger failed: $e');
+      }
+
       await _fetchDeltaSync(gapStart, gapEnd);
       _expectedSequenceNumber = event.sequenceNumber + 1;
-    } else if (event.sequenceNumber < _expectedSequenceNumber) {
-      debugPrint(
-          '[SYNC] Out of order message. Sequence ${event.sequenceNumber} < $_expectedSequenceNumber. Ignoring.');
-      return;
     } else {
       _expectedSequenceNumber = event.sequenceNumber + 1;
     }
 
-    // 3. Yield to OperationalRuntimeBridge for validation (Epoch, Deduplication, Sequence, Branch)
-    // Removed direct state mutation here to enforce strictly validated projection rebuild architecture.
-    debugPrint('[SYNC] Processing sync event: ${event.type}');
+    // 4. Yield to OperationalRuntimeBridge for validation (Epoch, Deduplication, Sequence, Branch)
+    debugPrint(
+      '[SYNC] Processing sync event payload: type=${event.type} seq=${event.sequenceNumber}',
+    );
   }
 
   Future<void> _fetchDeltaSync(int startSeq, int endSeq) async {
     final eventCount = endSeq - startSeq + 1;
     debugPrint(
-        '[SYNC] Recovering delta states for sequence range [$startSeq..$endSeq] ($eventCount events)...');
+      '[SYNC] Recovering delta states for sequence range [$startSeq..$endSeq] ($eventCount events)...',
+    );
 
     // Transition to replaying state to show progress UI
     _updateState(RealtimeConnectionState.replaying);
     _simulateReplayProgress(eventCount);
 
-    // In production: call REST API endpoint for the missed sequence range.
-    // e.g. await supabaseClient.from('sync_log').select()
-    //        .gte('sequence_number', startSeq).lte('sequence_number', endSeq);
-    await Future.delayed(Duration(milliseconds: 300 * eventCount.clamp(1, 5)));
+    try {
+      // Read branch context from auth state
+      final dioClient = ref.read(dioClientProvider);
+      const secureStorage = SecureLocalStorage();
+      final token = await secureStorage.read('runtime_token');
 
-    debugPrint('[SYNC] Delta state recovery complete for [$startSeq..$endSeq].');
+      // Fetch missed events from the runtime replay endpoint
+      final response = await dioClient.get(
+        '/api/v1/runtime/events/replay',
+        queryParameters: {
+          'from_seq': startSeq,
+          'to_seq': endSeq,
+        },
+        options: Options(
+          headers: {
+            if (token != null) 'Authorization': 'Bearer $token',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final events = response.data['data'] as List? ?? [];
+        debugPrint('[SYNC] Delta sync fetched ${events.length} replay events from backend.');
+        for (final eventJson in events) {
+          if (eventJson is Map<String, dynamic>) {
+            final normalized = _normalizeEventEnvelope(eventJson);
+            if (normalized != null) {
+              receiveRawPayload(normalized);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[SYNC] Delta sync REST call failed: $e. Continuing without replay.');
+    }
+
+    debugPrint(
+      '[SYNC] Delta state recovery complete for [$startSeq..$endSeq].',
+    );
   }
 
   void _simulateReplayProgress(int totalEvents) {
@@ -410,10 +505,9 @@ class RealtimeSyncManager {
       final progress = (completed / totalEvents).clamp(0.0, 1.0);
       final remaining = (totalEvents - completed).clamp(0, totalEvents);
       try {
-        ref.read(realtimeStateProvider.notifier).simulateReplay(
-              progress: progress,
-              eventsRemaining: remaining,
-            );
+        ref
+            .read(realtimeStateProvider.notifier)
+            .simulateReplay(progress: progress, eventsRemaining: remaining);
       } catch (_) {}
       if (completed >= totalEvents) {
         t.cancel();

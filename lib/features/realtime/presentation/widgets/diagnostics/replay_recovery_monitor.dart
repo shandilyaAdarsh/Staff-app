@@ -18,11 +18,17 @@ class ReplayRecoveryMonitor extends StatelessWidget {
     if (!isReplaying) return const SizedBox.shrink();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final surfaceColor = isDark
+        ? AppColors.darkSurface
+        : AppColors.lightSurface;
     final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    final replayColor = const Color(0xFF3D8EF0);
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
+    const replayColor = Color(0xFF3D8EF0);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -36,14 +42,14 @@ class ReplayRecoveryMonitor extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.history_rounded, color: replayColor, size: 20),
+              const Icon(Icons.history_rounded, color: replayColor, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Replay Recovery Active',
                 style: AppTextStyles.h3.copyWith(color: replayColor),
               ),
               const Spacer(),
-              SizedBox(
+              const SizedBox(
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
@@ -60,7 +66,7 @@ class ReplayRecoveryMonitor extends StatelessWidget {
               value: progress,
               minHeight: 8,
               backgroundColor: borderColor,
-              valueColor: AlwaysStoppedAnimation<Color>(replayColor),
+              valueColor: const AlwaysStoppedAnimation<Color>(replayColor),
             ),
           ),
           const SizedBox(height: 8),
@@ -73,7 +79,10 @@ class ReplayRecoveryMonitor extends StatelessWidget {
               ),
               Text(
                 '${(progress * 100).toStringAsFixed(0)}%',
-                style: AppTextStyles.caption.copyWith(color: textPrimary, fontWeight: FontWeight.bold),
+                style: AppTextStyles.caption.copyWith(
+                  color: textPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),

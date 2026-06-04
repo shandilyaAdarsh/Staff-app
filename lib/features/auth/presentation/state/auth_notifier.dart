@@ -5,7 +5,6 @@ import '../../domain/entities/branch.dart';
 import '../../domain/entities/staff_member.dart';
 import 'auth_state.dart';
 
-import 'package:flutter/foundation.dart';
 import '../../providers/auth_repository_provider.dart';
 import '../../../../core/runtime/runtime.dart';
 
@@ -15,16 +14,16 @@ part 'auth_notifier.g.dart';
 class AuthNotifier extends _$AuthNotifier {
   @override
   AuthState build() {
-    _loadInitialData();
+    // Initial data is loaded by UI to show loading state
     return const AuthState();
   }
 
-  Future<void> _loadInitialData() async {
+  Future<void> loadInitialData() async {
     final repo = ref.read(authRepositoryProvider);
     _organizations = await repo.getOrganizations();
-    for (var org in _organizations) {
-      _branches[org.id] = await repo.getBranchesForOrganization(org.id);
-    }
+    print('Fetched organizations: ${_organizations.length}');
+    // Force a state update to trigger rebuilds for any watchers
+    state = state.copyWith();
   }
 
   List<Organization> get mockOrganizations => _organizations;
@@ -33,7 +32,7 @@ class AuthNotifier extends _$AuthNotifier {
   // Preloaded mock data for offline resiliency and simulation
   // Now loaded dynamically from AuthRepository
   List<Organization> _organizations = [];
-  Map<String, List<Branch>> _branches = {};
+  final Map<String, List<Branch>> _branches = {};
 
   void selectOrganization(Organization org) {
     state = state.copyWith(
@@ -54,18 +53,20 @@ class AuthNotifier extends _$AuthNotifier {
     );
   }
 
-  Future<bool> loginWithPIN(String pin) async {
+  Future<bool> login(String employeeId, String pin) async {
     state = state.copyWith(errorMessage: null);
-    
+
     // Check pin credentials against authoritative repository
     final repo = ref.read(authRepositoryProvider);
-    final staff = await repo.loginWithPIN(pin);
-    
+    final staff = await repo.login(
+      employeeId,
+      pin, 
+      branchId: state.selectedBranch?.id,
+      orgId: state.selectedOrg?.id,
+    );
+
     if (staff != null) {
-      state = state.copyWith(
-        loggedInStaff: staff,
-        isLocked: false,
-      );
+      state = state.copyWith(loggedInStaff: staff, isLocked: false);
       return true;
     } else {
       state = state.copyWith(
@@ -77,7 +78,7 @@ class AuthNotifier extends _$AuthNotifier {
 
   Future<void> startShift(StaffRole role, String section) async {
     if (state.loggedInStaff == null || state.selectedBranch == null) return;
-    
+
     final updatedStaff = state.loggedInStaff!.copyWith(
       role: role,
       section: section,
@@ -105,7 +106,9 @@ class AuthNotifier extends _$AuthNotifier {
         isLocked: false,
       );
     } else {
-      state = state.copyWith(errorMessage: result.errorMessage ?? 'Failed to start shift');
+      state = state.copyWith(
+        errorMessage: result.errorMessage ?? 'Failed to start shift',
+      );
     }
   }
 

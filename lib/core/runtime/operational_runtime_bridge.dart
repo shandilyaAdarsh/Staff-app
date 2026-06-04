@@ -32,10 +32,6 @@ import 'invalidation_coordinator.dart';
 import 'projection_rebuild_engine.dart';
 import '../network/realtime_sync_manager.dart';
 import '../../features/auth/presentation/state/auth_notifier.dart';
-import '../../features/manager/presentation/state/manager_providers.dart';
-import '../../features/reservations/presentation/state/reservations_notifier.dart';
-import '../../features/realtime/presentation/state/realtime_providers.dart';
-
 import '../../features/orders/providers/orders_providers.dart';
 import '../../features/tables/providers/tables_providers.dart';
 import '../../features/waiter_calls/presentation/state/waiter_calls_providers.dart';
@@ -53,14 +49,11 @@ class OperationalRuntimeBridge {
   final Ref _ref;
 
   OperationalRuntimeBridge({
-    required RuntimeOrchestrator orchestrator,
-    required RealtimeSyncManager syncManager,
-    required DeterministicProjectionStore store,
-    required Ref ref,
-  })  : _orchestrator = orchestrator,
-        _syncManager = syncManager,
-        _store = store,
-        _ref = ref {
+    required this._orchestrator,
+    required this._syncManager,
+    required this._store,
+    required this._ref,
+  }) {
     _initialize();
   }
 
@@ -86,18 +79,16 @@ class OperationalRuntimeBridge {
 
   /// Called by RuntimeLifecycleManager when a session starts.
   /// Activates KDS runtime and presence governance for the branch.
-  void activateSession({
-    required String branchId,
-    required String epochId,
-  }) {
+  void activateSession({required String branchId, required String epochId}) {
     // Activate KDS runtime coordinator
-    _ref.read(kitchenRuntimeCoordinatorProvider).activateSession(
-          branchId: branchId,
-          epochId: epochId,
-        );
+    _ref
+        .read(kitchenRuntimeCoordinatorProvider)
+        .activateSession(branchId: branchId, epochId: epochId);
 
     // Activate presence governance runtime
-    _ref.read(presenceGovernanceRuntimeProvider).activateSession(
+    _ref
+        .read(presenceGovernanceRuntimeProvider)
+        .activateSession(
           branchId: branchId,
           epochId: epochId,
           onProjectionChanged: (records) {
@@ -108,13 +99,19 @@ class OperationalRuntimeBridge {
         );
 
     // Hydrate projection store from backend
-    _ref.read(operationalRuntimeHydratorProvider).hydrateInitialState(branchId: branchId).then((_) {
-      debugPrint('[OperationalRuntimeBridge] Initial hydration complete. Triggering full UI projection rebuild.');
-      _orchestrator.rebuildEngine.triggerFullRebuild();
-    });
+    _ref
+        .read(operationalRuntimeHydratorProvider)
+        .hydrateInitialState(branchId: branchId)
+        .then((_) {
+          debugPrint(
+            '[OperationalRuntimeBridge] Initial hydration complete. Triggering full UI projection rebuild.',
+          );
+          _orchestrator.rebuildEngine.triggerFullRebuild();
+        });
 
     debugPrint(
-        '[OperationalRuntimeBridge] Session activated: branch=$branchId epoch=$epochId');
+      '[OperationalRuntimeBridge] Session activated: branch=$branchId epoch=$epochId',
+    );
   }
 
   /// Called by RuntimeLifecycleManager when a session ends.
@@ -142,31 +139,35 @@ class OperationalRuntimeBridge {
     required String epochId,
     required int lastKnownSequence,
   }) async {
-    debugPrint('[OperationalRuntimeBridge] Exiting degraded mode — starting recovery');
+    debugPrint(
+      '[OperationalRuntimeBridge] Exiting degraded mode — starting recovery',
+    );
 
     // Show recovery state in UI
     _ref.read(kitchenTicketProjectionProvider.notifier).enterRecoveryState();
     _ref.read(presenceProjectionProvider.notifier).enterReconciliationState();
 
     // KDS recovery
-    await _ref.read(kitchenRuntimeCoordinatorProvider).exitDegradedMode(
+    await _ref
+        .read(kitchenRuntimeCoordinatorProvider)
+        .exitDegradedMode(
           branchId: branchId,
           epochId: epochId,
           lastKnownSequence: lastKnownSequence,
         );
 
     // Publish recovered kitchen projections
-    final recoveredQueue =
-        _ref.read(kitchenRuntimeCoordinatorProvider).getOrderedQueue();
+    final recoveredQueue = _ref
+        .read(kitchenRuntimeCoordinatorProvider)
+        .getOrderedQueue();
     _ref
         .read(kitchenTicketProjectionProvider.notifier)
         .applyProjectionUpdate(recoveredQueue);
 
     // Presence reconciliation
-    await _ref.read(presenceGovernanceRuntimeProvider).executeReconnectReconciliation(
-          branchId: branchId,
-          epochId: epochId,
-        );
+    await _ref
+        .read(presenceGovernanceRuntimeProvider)
+        .executeReconnectReconciliation(branchId: branchId, epochId: epochId);
 
     debugPrint('[OperationalRuntimeBridge] Recovery complete');
   }
@@ -176,7 +177,8 @@ class OperationalRuntimeBridge {
   /// Convert SyncEvent to RuntimeEvent and route through orchestrator.
   Future<void> _handleSyncEvent(SyncEvent syncEvent) async {
     debugPrint(
-        '[OperationalRuntimeBridge] Received sync event: ${syncEvent.type}');
+      '[OperationalRuntimeBridge] Received sync event: ${syncEvent.type}',
+    );
 
     final runtimeEvent = RuntimeEvent(
       idempotencyKey: syncEvent.idempotencyKey,
@@ -199,27 +201,10 @@ class OperationalRuntimeBridge {
   /// This is the ONLY place where feature state is updated from realtime events.
   Future<void> _dispatchValidatedEvent(RuntimeEvent event) async {
     debugPrint(
-        '[OperationalRuntimeBridge] Dispatching validated event: ${event.type}');
-
-    final payload = event.payload;
+      '[OperationalRuntimeBridge] Dispatching validated event: ${event.type}',
+    );
 
     switch (event.type) {
-      // ── Reservations ──────────────────────────────────────────────────────
-      case RuntimeEventType.reservationUpdate:
-        await _ref
-            .read(reservationsRepositoryProvider)
-            .applyRemoteReservationUpdate(payload);
-        break;
-
-      case RuntimeEventType.reservationDelete:
-        final id = payload['id'] as String?;
-        if (id != null) {
-          await _ref
-              .read(reservationsRepositoryProvider)
-              .applyRemoteReservationDelete(id);
-        }
-        break;
-
       // ── Stream-based Domains ──────────────────────────────────────────────
       // They now strictly flow through the DeterministicProjectionStore.
       // Rebuild engine will pick up the invalidations and notify the UI.
@@ -229,8 +214,7 @@ class OperationalRuntimeBridge {
       case RuntimeEventType.tableDelete:
       case RuntimeEventType.waiterCall:
       case RuntimeEventType.waiterCallDelete:
-      case RuntimeEventType.reservationUpdate:
-      case RuntimeEventType.reservationDelete:
+
       case RuntimeEventType.waitlistUpdate:
       case RuntimeEventType.waitlistDelete:
       case RuntimeEventType.staffPresenceUpdate:
@@ -241,114 +225,55 @@ class OperationalRuntimeBridge {
       case RuntimeEventType.unknown:
       default:
         debugPrint(
-            '[OperationalRuntimeBridge] WARNING: Unknown event type ${event.type}');
+          '[OperationalRuntimeBridge] WARNING: Unknown event type ${event.type}',
+        );
         break;
     }
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━ KDS DISPATCH ━━━━━━━━━━━━━━━━━━━━━━
-
-  /// Route a validated kitchen event through KitchenRuntimeCoordinator.
-  /// After coordinator accepts the event, publish updated projection to UI.
-  void _dispatchKitchenEvent(RuntimeEvent event, {required bool isItemUpdate}) {
-    final coordinator = _ref.read(kitchenRuntimeCoordinatorProvider);
-
-    final result = coordinator.applyEvent(
-      idempotencyKey: event.idempotencyKey,
-      sequenceNumber: event.sequenceNumber,
-      branchId: event.branchId,
-      epochId: event.epochId,
-      payload: event.payload,
-      isItemUpdate: isItemUpdate,
-    );
-
-    if (result.isAccepted) {
-      // Publish updated projection to reactive UI layer
-      final updatedQueue = coordinator.getOrderedQueue();
-      _ref
-          .read(kitchenTicketProjectionProvider.notifier)
-          .applyProjectionUpdate(updatedQueue);
-
-      debugPrint(
-          '[OperationalRuntimeBridge] KDS projection updated: '
-          '${updatedQueue.length} tickets');
-    } else {
-      debugPrint(
-          '[OperationalRuntimeBridge] KDS event rejected: '
-          '${result.outcome} reason=${result.reason}');
-    }
-  }
-
-  // ━━━━━━━━━━━━━━━━━━━━━━ PRESENCE DISPATCH ━━━━━━━━━━━━━━━━━━━━━━
-
-  /// Route a validated presence update through PresenceGovernanceRuntime.
-  void _dispatchPresenceUpdate(RuntimeEvent event) {
-    final governance = _ref.read(presenceGovernanceRuntimeProvider);
-
-    final result = governance.applyPresenceUpdate(
-      idempotencyKey: event.idempotencyKey,
-      branchId: event.branchId,
-      epochId: event.epochId,
-      payload: event.payload,
-    );
-
-    if (!result.isAccepted) {
-      debugPrint(
-          '[OperationalRuntimeBridge] Presence update rejected: '
-          '${result.outcome} reason=${result.reason}');
-    }
-    // Projection publication is handled by PresenceGovernanceRuntime
-    // via the onProjectionChanged callback registered in activateSession().
-  }
-
-  /// Route a validated presence delete through PresenceGovernanceRuntime.
-  void _dispatchPresenceDelete(RuntimeEvent event) {
-    final staffId = event.payload['staffId'] as String?;
-    if (staffId == null) {
-      debugPrint(
-          '[OperationalRuntimeBridge] Presence delete: missing staffId');
-      return;
-    }
-
-    final governance = _ref.read(presenceGovernanceRuntimeProvider);
-
-    final result = governance.applyPresenceDelete(
-      idempotencyKey: event.idempotencyKey,
-      branchId: event.branchId,
-      epochId: event.epochId,
-      staffId: staffId,
-    );
-
-    if (!result.isAccepted) {
-      debugPrint(
-          '[OperationalRuntimeBridge] Presence delete rejected: '
-          '${result.outcome} reason=${result.reason}');
-    }
-  }
 
   // ━━━━━━━━━━━━━━━━━━━━━━ EVENT TYPE MAPPING ━━━━━━━━━━━━━━━━━━━━━━
 
   RuntimeEventType _mapEventType(String syncEventType) {
     switch (syncEventType) {
-      case 'table_update':                return RuntimeEventType.tableUpdate;
-      case 'table_delete':                return RuntimeEventType.tableDelete;
-      case 'order_update':                return RuntimeEventType.orderUpdate;
-      case 'order_delete':                return RuntimeEventType.orderDelete;
-      case 'waiter_call':                 return RuntimeEventType.waiterCall;
-      case 'waiter_call_delete':          return RuntimeEventType.waiterCallDelete;
-      case 'kitchen_item_update':         return RuntimeEventType.kitchenItemUpdate;
-      case 'kitchen_queue_update':        return RuntimeEventType.kitchenQueueUpdate;
-      case 'reservation_update':          return RuntimeEventType.reservationUpdate;
-      case 'reservation_delete':          return RuntimeEventType.reservationDelete;
-      case 'waitlist_update':             return RuntimeEventType.waitlistUpdate;
-      case 'waitlist_delete':             return RuntimeEventType.waitlistDelete;
-      case 'staff_presence_update':       return RuntimeEventType.staffPresenceUpdate;
-      case 'staff_presence_delete':       return RuntimeEventType.staffPresenceDelete;
-      case 'operational_alert_created':   return RuntimeEventType.operationalAlertCreated;
-      case 'operational_alert_updated':   return RuntimeEventType.operationalAlertUpdated;
-      case 'operational_alert_dismissed': return RuntimeEventType.operationalAlertDismissed;
-      case 'floor_analytics_delta':       return RuntimeEventType.floorAnalyticsDelta;
-      default:                            return RuntimeEventType.unknown;
+      case 'table_update':
+        return RuntimeEventType.tableUpdate;
+      case 'table_delete':
+        return RuntimeEventType.tableDelete;
+      case 'order_update':
+        return RuntimeEventType.orderUpdate;
+      case 'order_delete':
+        return RuntimeEventType.orderDelete;
+      case 'waiter_call':
+        return RuntimeEventType.waiterCall;
+      case 'waiter_call_delete':
+        return RuntimeEventType.waiterCallDelete;
+      case 'kitchen_item_update':
+        return RuntimeEventType.kitchenItemUpdate;
+      case 'kitchen_queue_update':
+        return RuntimeEventType.kitchenQueueUpdate;
+      case 'reservation_update':
+        return RuntimeEventType.reservationUpdate;
+      case 'reservation_delete':
+        return RuntimeEventType.reservationDelete;
+      case 'waitlist_update':
+        return RuntimeEventType.waitlistUpdate;
+      case 'waitlist_delete':
+        return RuntimeEventType.waitlistDelete;
+      case 'staff_presence_update':
+        return RuntimeEventType.staffPresenceUpdate;
+      case 'staff_presence_delete':
+        return RuntimeEventType.staffPresenceDelete;
+      case 'operational_alert_created':
+        return RuntimeEventType.operationalAlertCreated;
+      case 'operational_alert_updated':
+        return RuntimeEventType.operationalAlertUpdated;
+      case 'operational_alert_dismissed':
+        return RuntimeEventType.operationalAlertDismissed;
+      case 'floor_analytics_delta':
+        return RuntimeEventType.floorAnalyticsDelta;
+      default:
+        return RuntimeEventType.unknown;
     }
   }
 
@@ -367,142 +292,194 @@ class OperationalRuntimeBridge {
 
   void _registerInvalidationRules() {
     // Orders domain
-    _orchestrator.registerInvalidationRule(const InvalidationRule(
-      eventType: 'RuntimeEventType.orderUpdate',
-      affectedProjections: {'orders'},
-      cascades: true,
-    ));
-    _orchestrator.registerInvalidationRule(const InvalidationRule(
-      eventType: 'RuntimeEventType.orderDelete',
-      affectedProjections: {'orders'},
-      cascades: true,
-    ));
+    _orchestrator.registerInvalidationRule(
+      const InvalidationRule(
+        eventType: 'RuntimeEventType.orderUpdate',
+        affectedProjections: {'orders'},
+        cascades: true,
+      ),
+    );
+    _orchestrator.registerInvalidationRule(
+      const InvalidationRule(
+        eventType: 'RuntimeEventType.orderDelete',
+        affectedProjections: {'orders'},
+        cascades: true,
+      ),
+    );
 
     // Tables domain
-    _orchestrator.registerInvalidationRule(const InvalidationRule(
-      eventType: 'RuntimeEventType.tableUpdate',
-      affectedProjections: {'tables'},
-    ));
-    _orchestrator.registerInvalidationRule(const InvalidationRule(
-      eventType: 'RuntimeEventType.tableDelete',
-      affectedProjections: {'tables'},
-    ));
+    _orchestrator.registerInvalidationRule(
+      const InvalidationRule(
+        eventType: 'RuntimeEventType.tableUpdate',
+        affectedProjections: {'tables'},
+      ),
+    );
+    _orchestrator.registerInvalidationRule(
+      const InvalidationRule(
+        eventType: 'RuntimeEventType.tableDelete',
+        affectedProjections: {'tables'},
+      ),
+    );
 
     // Waiter calls domain
-    _orchestrator.registerInvalidationRule(const InvalidationRule(
-      eventType: 'RuntimeEventType.waiterCall',
-      affectedProjections: {'waiterCalls'},
-    ));
-    _orchestrator.registerInvalidationRule(const InvalidationRule(
-      eventType: 'RuntimeEventType.waiterCallDelete',
-      affectedProjections: {'waiterCalls'},
-    ));
+    _orchestrator.registerInvalidationRule(
+      const InvalidationRule(
+        eventType: 'RuntimeEventType.waiterCall',
+        affectedProjections: {'waiterCalls'},
+      ),
+    );
+    _orchestrator.registerInvalidationRule(
+      const InvalidationRule(
+        eventType: 'RuntimeEventType.waiterCallDelete',
+        affectedProjections: {'waiterCalls'},
+      ),
+    );
 
     // Kitchen domain — also invalidates orders (cascades)
-    _orchestrator.registerInvalidationRule(const InvalidationRule(
-      eventType: 'RuntimeEventType.kitchenItemUpdate',
-      affectedProjections: {'orders'},
-      cascades: true,
-    ));
-    _orchestrator.registerInvalidationRule(const InvalidationRule(
-      eventType: 'RuntimeEventType.kitchenQueueUpdate',
-      affectedProjections: {'orders'},
-      cascades: true,
-    ));
+    _orchestrator.registerInvalidationRule(
+      const InvalidationRule(
+        eventType: 'RuntimeEventType.kitchenItemUpdate',
+        affectedProjections: {'orders'},
+        cascades: true,
+      ),
+    );
+    _orchestrator.registerInvalidationRule(
+      const InvalidationRule(
+        eventType: 'RuntimeEventType.kitchenQueueUpdate',
+        affectedProjections: {'orders'},
+        cascades: true,
+      ),
+    );
 
     // Reservations domain
-    _orchestrator.registerInvalidationRule(const InvalidationRule(
-      eventType: 'RuntimeEventType.reservationUpdate',
-      affectedProjections: {'reservations'},
-    ));
-    _orchestrator.registerInvalidationRule(const InvalidationRule(
-      eventType: 'RuntimeEventType.reservationDelete',
-      affectedProjections: {'reservations'},
-    ));
-    _orchestrator.registerInvalidationRule(const InvalidationRule(
-      eventType: 'RuntimeEventType.waitlistUpdate',
-      affectedProjections: {'reservations'},
-    ));
-    _orchestrator.registerInvalidationRule(const InvalidationRule(
-      eventType: 'RuntimeEventType.waitlistDelete',
-      affectedProjections: {'reservations'},
-    ));
+    _orchestrator.registerInvalidationRule(
+      const InvalidationRule(
+        eventType: 'RuntimeEventType.reservationUpdate',
+        affectedProjections: {'reservations'},
+      ),
+    );
+    _orchestrator.registerInvalidationRule(
+      const InvalidationRule(
+        eventType: 'RuntimeEventType.reservationDelete',
+        affectedProjections: {'reservations'},
+      ),
+    );
+    _orchestrator.registerInvalidationRule(
+      const InvalidationRule(
+        eventType: 'RuntimeEventType.waitlistUpdate',
+        affectedProjections: {'reservations'},
+      ),
+    );
+    _orchestrator.registerInvalidationRule(
+      const InvalidationRule(
+        eventType: 'RuntimeEventType.waitlistDelete',
+        affectedProjections: {'reservations'},
+      ),
+    );
 
     // Staff presence domain
-    _orchestrator.registerInvalidationRule(const InvalidationRule(
-      eventType: 'RuntimeEventType.staffPresenceUpdate',
-      affectedProjections: {'staff'},
-    ));
-    _orchestrator.registerInvalidationRule(const InvalidationRule(
-      eventType: 'RuntimeEventType.staffPresenceDelete',
-      affectedProjections: {'staff'},
-    ));
+    _orchestrator.registerInvalidationRule(
+      const InvalidationRule(
+        eventType: 'RuntimeEventType.staffPresenceUpdate',
+        affectedProjections: {'staff'},
+      ),
+    );
+    _orchestrator.registerInvalidationRule(
+      const InvalidationRule(
+        eventType: 'RuntimeEventType.staffPresenceDelete',
+        affectedProjections: {'staff'},
+      ),
+    );
 
     // Operational alerts domain
-    _orchestrator.registerInvalidationRule(const InvalidationRule(
-      eventType: 'RuntimeEventType.operationalAlertCreated',
-      affectedProjections: {'alerts'},
-    ));
-    _orchestrator.registerInvalidationRule(const InvalidationRule(
-      eventType: 'RuntimeEventType.operationalAlertUpdated',
-      affectedProjections: {'alerts'},
-    ));
-    _orchestrator.registerInvalidationRule(const InvalidationRule(
-      eventType: 'RuntimeEventType.operationalAlertDismissed',
-      affectedProjections: {'alerts'},
-    ));
+    _orchestrator.registerInvalidationRule(
+      const InvalidationRule(
+        eventType: 'RuntimeEventType.operationalAlertCreated',
+        affectedProjections: {'alerts'},
+      ),
+    );
+    _orchestrator.registerInvalidationRule(
+      const InvalidationRule(
+        eventType: 'RuntimeEventType.operationalAlertUpdated',
+        affectedProjections: {'alerts'},
+      ),
+    );
+    _orchestrator.registerInvalidationRule(
+      const InvalidationRule(
+        eventType: 'RuntimeEventType.operationalAlertDismissed',
+        affectedProjections: {'alerts'},
+      ),
+    );
 
     // Floor analytics domain
-    _orchestrator.registerInvalidationRule(const InvalidationRule(
-      eventType: 'RuntimeEventType.floorAnalyticsDelta',
-      affectedProjections: {'analytics'},
-    ));
+    _orchestrator.registerInvalidationRule(
+      const InvalidationRule(
+        eventType: 'RuntimeEventType.floorAnalyticsDelta',
+        affectedProjections: {'analytics'},
+      ),
+    );
 
     debugPrint(
-        '[OperationalRuntimeBridge] Registered invalidation rules for all operational domains');
+      '[OperationalRuntimeBridge] Registered invalidation rules for all operational domains',
+    );
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━ PROJECTION REBUILDERS ━━━━━━━━━━━━━━━━━━━━━━
 
   void _registerProjectionRebuilders() {
-    _orchestrator.registerProjection(ProjectionRegistration(
-      projectionKey: 'ProjectionDomain.orders',
-      rebuilder: _rebuildOrdersProjection,
-      priority: 10,
-    ));
-    _orchestrator.registerProjection(ProjectionRegistration(
-      projectionKey: 'ProjectionDomain.tables',
-      rebuilder: _rebuildTablesProjection,
-      priority: 10,
-    ));
-    _orchestrator.registerProjection(ProjectionRegistration(
-      projectionKey: 'ProjectionDomain.waiterCalls',
-      rebuilder: _rebuildWaiterCallsProjection,
-      priority: 10,
-    ));
-    _orchestrator.registerProjection(ProjectionRegistration(
-      projectionKey: 'ProjectionDomain.reservations',
-      rebuilder: _rebuildReservationsProjection,
-      priority: 10,
-    ));
-    _orchestrator.registerProjection(ProjectionRegistration(
-      projectionKey: 'ProjectionDomain.staff',
-      rebuilder: _rebuildStaffProjection,
-      priority: 10,
-    ));
-    _orchestrator.registerProjection(ProjectionRegistration(
-      projectionKey: 'ProjectionDomain.alerts',
-      rebuilder: _rebuildAlertsProjection,
-      priority: 10,
-    ));
-    _orchestrator.registerProjection(ProjectionRegistration(
-      projectionKey: 'ProjectionDomain.analytics',
-      rebuilder: _rebuildAnalyticsProjection,
-      priority: 10,
-    ));
+    _orchestrator.registerProjection(
+      ProjectionRegistration(
+        projectionKey: 'ProjectionDomain.orders',
+        rebuilder: _rebuildOrdersProjection,
+        priority: 10,
+      ),
+    );
+    _orchestrator.registerProjection(
+      ProjectionRegistration(
+        projectionKey: 'ProjectionDomain.tables',
+        rebuilder: _rebuildTablesProjection,
+        priority: 10,
+      ),
+    );
+    _orchestrator.registerProjection(
+      ProjectionRegistration(
+        projectionKey: 'ProjectionDomain.waiterCalls',
+        rebuilder: _rebuildWaiterCallsProjection,
+        priority: 10,
+      ),
+    );
+    _orchestrator.registerProjection(
+      ProjectionRegistration(
+        projectionKey: 'ProjectionDomain.reservations',
+        rebuilder: _rebuildReservationsProjection,
+        priority: 10,
+      ),
+    );
+    _orchestrator.registerProjection(
+      ProjectionRegistration(
+        projectionKey: 'ProjectionDomain.staff',
+        rebuilder: _rebuildStaffProjection,
+        priority: 10,
+      ),
+    );
+    _orchestrator.registerProjection(
+      ProjectionRegistration(
+        projectionKey: 'ProjectionDomain.alerts',
+        rebuilder: _rebuildAlertsProjection,
+        priority: 10,
+      ),
+    );
+    _orchestrator.registerProjection(
+      ProjectionRegistration(
+        projectionKey: 'ProjectionDomain.analytics',
+        rebuilder: _rebuildAnalyticsProjection,
+        priority: 10,
+      ),
+    );
 
     debugPrint(
-        '[OperationalRuntimeBridge] Registered projection rebuilders for all domains');
+      '[OperationalRuntimeBridge] Registered projection rebuilders for all domains',
+    );
   }
 
   // Full-resync rebuilders (called on reconnect / epoch change / invalidation)
@@ -551,23 +528,29 @@ final runtimeOrchestratorProvider = Provider<RuntimeOrchestrator>((ref) {
   return RuntimeOrchestrator();
 });
 
-final deterministicProjectionStoreProvider = Provider<DeterministicProjectionStore>((ref) {
-  return DeterministicProjectionStore();
-});
+final deterministicProjectionStoreProvider =
+    Provider<DeterministicProjectionStore>((ref) {
+      return DeterministicProjectionStore();
+    });
 
-final mutationAcknowledgementManagerProvider = Provider<MutationAcknowledgementManager>((ref) {
-  final store = ref.watch(deterministicProjectionStoreProvider);
-  return MutationAcknowledgementManager(store);
-});
+final mutationAcknowledgementManagerProvider =
+    Provider<MutationAcknowledgementManager>((ref) {
+      final store = ref.watch(deterministicProjectionStoreProvider);
+      return MutationAcknowledgementManager(store);
+    });
 
-final replayRecoveryCoordinatorProvider = Provider<ReplayRecoveryCoordinator>((ref) {
+final replayRecoveryCoordinatorProvider = Provider<ReplayRecoveryCoordinator>((
+  ref,
+) {
   final store = ref.watch(deterministicProjectionStoreProvider);
   final orchestrator = ref.watch(runtimeOrchestratorProvider);
   return ReplayRecoveryCoordinator(store, orchestrator.rebuildEngine);
 });
 
 /// Provider for the operational runtime bridge.
-final operationalRuntimeBridgeProvider = Provider<OperationalRuntimeBridge>((ref) {
+final operationalRuntimeBridgeProvider = Provider<OperationalRuntimeBridge>((
+  ref,
+) {
   final orchestrator = ref.watch(runtimeOrchestratorProvider);
   final syncManager = ref.watch(realtimeSyncManagerProvider);
   final store = ref.watch(deterministicProjectionStoreProvider);
@@ -580,7 +563,9 @@ final operationalRuntimeBridgeProvider = Provider<OperationalRuntimeBridge>((ref
   );
 });
 
-final operationalRuntimeHydratorProvider = Provider<OperationalRuntimeHydrator>((ref) {
-  final store = ref.watch(deterministicProjectionStoreProvider);
-  return OperationalRuntimeHydrator(store, ref);
-});
+final operationalRuntimeHydratorProvider = Provider<OperationalRuntimeHydrator>(
+  (ref) {
+    final store = ref.watch(deterministicProjectionStoreProvider);
+    return OperationalRuntimeHydrator(store, ref);
+  },
+);

@@ -84,10 +84,9 @@ class KitchenRuntimeCoordinator {
   final Set<String> _processedKeys = {};
 
   KitchenRuntimeCoordinator({
-    required KitchenProjectionRebuildEngine rebuildEngine,
-    required TicketReplayRecoveryCoordinator replayCoordinator,
-  })  : _rebuildEngine = rebuildEngine,
-        _replayCoordinator = replayCoordinator;
+    required this._rebuildEngine,
+    required this._replayCoordinator,
+  });
 
   // ── Getters ───────────────────────────────────────────────────────────────
 
@@ -99,17 +98,15 @@ class KitchenRuntimeCoordinator {
   // ━━━━━━━━━━━━━━━━━━━━━━ SESSION LIFECYCLE ━━━━━━━━━━━━━━━━━━━━━━
 
   /// Called by OperationalRuntimeBridge when a session starts.
-  void activateSession({
-    required String branchId,
-    required String epochId,
-  }) {
+  void activateSession({required String branchId, required String epochId}) {
     _activeBranchId = branchId;
     _activeEpochId = epochId;
     _mode = KitchenRuntimeMode.live;
     _ticketLastSequence.clear();
     _processedKeys.clear();
     debugPrint(
-        '[KitchenRuntimeCoordinator] Session activated: branch=$branchId epoch=$epochId');
+      '[KitchenRuntimeCoordinator] Session activated: branch=$branchId epoch=$epochId',
+    );
   }
 
   /// Called on session end / logout.
@@ -129,7 +126,9 @@ class KitchenRuntimeCoordinator {
   void enterDegradedMode() {
     if (_mode == KitchenRuntimeMode.degraded) return;
     _mode = KitchenRuntimeMode.degraded;
-    debugPrint('[KitchenRuntimeCoordinator] Entered DEGRADED mode — kitchen is readonly');
+    debugPrint(
+      '[KitchenRuntimeCoordinator] Entered DEGRADED mode — kitchen is readonly',
+    );
   }
 
   /// Called when transport reconnects — triggers replay recovery.
@@ -139,7 +138,8 @@ class KitchenRuntimeCoordinator {
     required int lastKnownSequence,
   }) async {
     debugPrint(
-        '[KitchenRuntimeCoordinator] Exiting degraded mode — starting recovery');
+      '[KitchenRuntimeCoordinator] Exiting degraded mode — starting recovery',
+    );
     _mode = KitchenRuntimeMode.recovering;
 
     // Invalidate all stale projections before recovery
@@ -153,14 +153,17 @@ class KitchenRuntimeCoordinator {
       onTicketRecovered: (ticket) {
         _rebuildEngine.applyProjection(ticket);
         debugPrint(
-            '[KitchenRuntimeCoordinator] Recovered ticket: ${ticket.ticketId}');
+          '[KitchenRuntimeCoordinator] Recovered ticket: ${ticket.ticketId}',
+        );
       },
     );
 
     _activeBranchId = branchId;
     _activeEpochId = epochId;
     _mode = KitchenRuntimeMode.live;
-    debugPrint('[KitchenRuntimeCoordinator] Recovery complete — back to LIVE mode');
+    debugPrint(
+      '[KitchenRuntimeCoordinator] Recovery complete — back to LIVE mode',
+    );
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━ EVENT PIPELINE ━━━━━━━━━━━━━━━━━━━━━━
@@ -177,53 +180,66 @@ class KitchenRuntimeCoordinator {
     required String branchId,
     required String epochId,
     required Map<String, dynamic> payload,
-    required bool isItemUpdate, // true=kitchenItemUpdate, false=kitchenQueueUpdate
+    required bool
+    isItemUpdate, // true=kitchenItemUpdate, false=kitchenQueueUpdate
   }) {
     // ── Gate 1: Offline degraded — reject mutations ────────────────────────
     if (_mode == KitchenRuntimeMode.degraded) {
       debugPrint(
-          '[KitchenRuntimeCoordinator] QUEUED (offline): $idempotencyKey');
-      return const KitchenEventResult(KitchenEventOutcome.queuedOffline,
-          reason: 'device-offline');
+        '[KitchenRuntimeCoordinator] QUEUED (offline): $idempotencyKey',
+      );
+      return const KitchenEventResult(
+        KitchenEventOutcome.queuedOffline,
+        reason: 'device-offline',
+      );
     }
 
     // ── Gate 2: Branch isolation ───────────────────────────────────────────
     if (_activeBranchId != null && branchId != _activeBranchId) {
       debugPrint(
-          '[KitchenRuntimeCoordinator] REJECTED (branch): $idempotencyKey '
-          'event=$branchId active=$_activeBranchId');
-      return const KitchenEventResult(KitchenEventOutcome.rejectedBranch,
-          reason: 'cross-branch-event');
+        '[KitchenRuntimeCoordinator] REJECTED (branch): $idempotencyKey '
+        'event=$branchId active=$_activeBranchId',
+      );
+      return const KitchenEventResult(
+        KitchenEventOutcome.rejectedBranch,
+        reason: 'cross-branch-event',
+      );
     }
 
     // ── Gate 3: Epoch validation ───────────────────────────────────────────
     if (_activeEpochId != null && epochId != _activeEpochId) {
       debugPrint(
-          '[KitchenRuntimeCoordinator] REJECTED (epoch): $idempotencyKey '
-          'event=$epochId active=$_activeEpochId');
-      return const KitchenEventResult(KitchenEventOutcome.rejectedEpoch,
-          reason: 'stale-epoch');
+        '[KitchenRuntimeCoordinator] REJECTED (epoch): $idempotencyKey '
+        'event=$epochId active=$_activeEpochId',
+      );
+      return const KitchenEventResult(
+        KitchenEventOutcome.rejectedEpoch,
+        reason: 'stale-epoch',
+      );
     }
 
     // ── Gate 4: Idempotency deduplication ─────────────────────────────────
     if (_processedKeys.contains(idempotencyKey)) {
       debugPrint(
-          '[KitchenRuntimeCoordinator] REJECTED (duplicate): $idempotencyKey');
+        '[KitchenRuntimeCoordinator] REJECTED (duplicate): $idempotencyKey',
+      );
       return const KitchenEventResult(KitchenEventOutcome.rejectedDuplicate);
     }
 
     // ── Gate 5: Per-ticket concurrent mutation safety ─────────────────────
-    final ticketId = payload['ticketId'] as String? ??
-        payload['orderId'] as String? ??
-        '';
+    final ticketId =
+        payload['ticketId'] as String? ?? payload['orderId'] as String? ?? '';
     if (ticketId.isNotEmpty) {
       final lastSeq = _ticketLastSequence[ticketId] ?? 0;
       if (sequenceNumber <= lastSeq) {
         debugPrint(
-            '[KitchenRuntimeCoordinator] REJECTED (stale): ticket=$ticketId '
-            'seq=$sequenceNumber lastAccepted=$lastSeq');
-        return const KitchenEventResult(KitchenEventOutcome.rejectedStale,
-            reason: 'stale-sequence-for-ticket');
+          '[KitchenRuntimeCoordinator] REJECTED (stale): ticket=$ticketId '
+          'seq=$sequenceNumber lastAccepted=$lastSeq',
+        );
+        return const KitchenEventResult(
+          KitchenEventOutcome.rejectedStale,
+          reason: 'stale-sequence-for-ticket',
+        );
       }
     }
 
@@ -249,7 +265,8 @@ class KitchenRuntimeCoordinator {
     }
 
     debugPrint(
-        '[KitchenRuntimeCoordinator] ACCEPTED: $idempotencyKey seq=$sequenceNumber');
+      '[KitchenRuntimeCoordinator] ACCEPTED: $idempotencyKey seq=$sequenceNumber',
+    );
     return const KitchenEventResult(KitchenEventOutcome.accepted);
   }
 
@@ -268,11 +285,11 @@ class KitchenRuntimeCoordinator {
   // ━━━━━━━━━━━━━━━━━━━━━━ STATS ━━━━━━━━━━━━━━━━━━━━━━
 
   Map<String, dynamic> getStats() => {
-        'mode': _mode.name,
-        'activeBranchId': _activeBranchId,
-        'activeEpochId': _activeEpochId,
-        'processedEventCount': _processedKeys.length,
-        'trackedTickets': _ticketLastSequence.length,
-        'projectionStats': _rebuildEngine.getStats(),
-      };
+    'mode': _mode.name,
+    'activeBranchId': _activeBranchId,
+    'activeEpochId': _activeEpochId,
+    'processedEventCount': _processedKeys.length,
+    'trackedTickets': _ticketLastSequence.length,
+    'projectionStats': _rebuildEngine.getStats(),
+  };
 }

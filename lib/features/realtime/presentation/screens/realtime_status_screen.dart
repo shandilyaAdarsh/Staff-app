@@ -20,8 +20,6 @@ import '../widgets/diagnostics/queue_backlog_inspector.dart';
 import '../widgets/diagnostics/runtime_epoch_diagnostics.dart';
 import '../widgets/diagnostics/realtime_synchronization_inspector.dart';
 
-
-
 class RealtimeStatusScreen extends ConsumerWidget {
   const RealtimeStatusScreen({super.key});
 
@@ -30,26 +28,30 @@ class RealtimeStatusScreen extends ConsumerWidget {
     final healthState = ref.watch(operationalHealthProvider);
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surfaceColor =
-        isDark ? AppColors.darkSurface : AppColors.lightSurface;
-    final borderColor =
-        isDark ? AppColors.darkBorder : AppColors.lightBorder;
-    final textPrimary =
-        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary =
-        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final surfaceColor = isDark
+        ? AppColors.darkSurface
+        : AppColors.lightSurface;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
 
     return Scaffold(
-      backgroundColor:
-          isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      backgroundColor: isDark
+          ? AppColors.darkBackground
+          : AppColors.lightBackground,
       appBar: AppBar(
         title: Text(
           'Runtime Diagnostics',
           style: AppTextStyles.h3.copyWith(color: textPrimary),
         ),
         centerTitle: false,
-        backgroundColor:
-            isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        backgroundColor: isDark
+            ? AppColors.darkSurface
+            : AppColors.lightSurface,
         elevation: 0,
         scrolledUnderElevation: 0,
         bottom: PreferredSize(
@@ -67,13 +69,15 @@ class RealtimeStatusScreen extends ConsumerWidget {
               HapticFeedback.selectionClick();
               ref.read(operationalHealthProvider.notifier).refresh();
             },
-          )
+          ),
         ],
       ),
       body: healthState.when(
         data: (snapshot) {
           final isReplaying = snapshot.transport.isReplaying;
-          final replayProgress = isReplaying ? 0.65 : 1.0; // In a real scenario, this would come from the snapshot or KDS
+          final replayProgress = isReplaying
+              ? 0.65
+              : 1.0; // In a real scenario, this would come from the snapshot or KDS
 
           return ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
@@ -119,7 +123,8 @@ class RealtimeStatusScreen extends ConsumerWidget {
               MutationAcknowledgementMonitor(mutations: snapshot.mutations),
               const SizedBox(height: 16),
               QueueBacklogInspector(
-                projectionRebuildBacklog: snapshot.projections.currentlyRebuilding,
+                projectionRebuildBacklog:
+                    snapshot.projections.currentlyRebuilding,
                 mutationBacklog: snapshot.mutations.pendingMutations,
               ),
 
@@ -141,7 +146,9 @@ class RealtimeStatusScreen extends ConsumerWidget {
                       onPressed: () {
                         HapticFeedback.mediumImpact();
                         ref.read(realtimeSyncManagerProvider).connectLocal();
-                        ref.read(realtimeStateProvider.notifier).simulateReconnect();
+                        ref
+                            .read(realtimeStateProvider.notifier)
+                            .simulateReconnect();
                       },
                     ),
                   ),
@@ -155,7 +162,9 @@ class RealtimeStatusScreen extends ConsumerWidget {
                         HapticFeedback.heavyImpact();
                         // Real implementation would call epochManager.invalidateEpoch()
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Epoch invalidated (Simulated)')),
+                          const SnackBar(
+                            content: Text('Epoch invalidated (Simulated)'),
+                          ),
                         );
                       },
                     ),
@@ -178,7 +187,12 @@ class RealtimeStatusScreen extends ConsumerWidget {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, s) => Center(child: Text('Error loading diagnostics: $e', style: TextStyle(color: AppColors.error))),
+        error: (e, s) => Center(
+          child: Text(
+            'Error loading diagnostics: $e',
+            style: const TextStyle(color: AppColors.error),
+          ),
+        ),
       ),
     );
   }
@@ -219,7 +233,8 @@ class _StatusCard extends StatelessWidget {
           icon: Icons.warning_rounded,
           label: 'Degraded Mode',
           color: AppColors.warning,
-          subtitle: 'System operating with reduced capabilities. Queuing locally.',
+          subtitle:
+              'System operating with reduced capabilities. Queuing locally.',
           showSpinner: false,
         );
       case 'critical':
@@ -227,7 +242,8 @@ class _StatusCard extends StatelessWidget {
           icon: Icons.dangerous_rounded,
           label: 'Critical Failure',
           color: AppColors.error,
-          subtitle: 'Runtime synchronization failed. Manual intervention needed.',
+          subtitle:
+              'Runtime synchronization failed. Manual intervention needed.',
           showSpinner: false,
         );
       default:
@@ -338,8 +354,6 @@ class _StatusConfig {
   });
 }
 
-
-
 // ---------------------------------------------------------------------------
 // Action Button
 // ---------------------------------------------------------------------------
@@ -364,10 +378,7 @@ class _ActionButton extends StatelessWidget {
       child: ElevatedButton.icon(
         onPressed: onPressed,
         icon: Icon(icon, size: 20),
-        label: Text(
-          label,
-          style: AppTextStyles.button.copyWith(fontSize: 13),
-        ),
+        label: Text(label, style: AppTextStyles.button.copyWith(fontSize: 13)),
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
           foregroundColor: Colors.white,
@@ -443,8 +454,7 @@ class _SimulationPanel extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.science_rounded,
-                  color: textSecondary, size: 18),
+              Icon(Icons.science_rounded, color: textSecondary, size: 18),
               const SizedBox(width: 8),
               Text(
                 'Simulate State',
@@ -461,8 +471,10 @@ class _SimulationPanel extends ConsumerWidget {
             runSpacing: 8,
             children: states.map((s) {
               final (label, color, icon) = s;
-              final current =
-                  ref.watch(realtimeStateProvider).connectionState.name;
+              final current = ref
+                  .watch(realtimeStateProvider)
+                  .connectionState
+                  .name;
               final isActive = current == label;
               return GestureDetector(
                 onTap: () {
@@ -489,25 +501,27 @@ class _SimulationPanel extends ConsumerWidget {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 8),
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: isActive
-                        ? color.withOpacity(0.18)
+                        ? color.withValues(alpha: 0.18)
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(100),
                     border: Border.all(
-                      color: isActive
-                          ? color
-                          : borderColor,
+                      color: isActive ? color : borderColor,
                       width: isActive ? 1.5 : 1,
                     ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(icon,
-                          color: isActive ? color : textSecondary,
-                          size: 16),
+                      Icon(
+                        icon,
+                        color: isActive ? color : textSecondary,
+                        size: 16,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         label,

@@ -97,11 +97,10 @@ class RuntimeDiagnosticsCoordinator {
   static const String _deviceId = 'staff-runtime-01';
 
   RuntimeDiagnosticsCoordinator({
-    required Ref ref,
-    required TransportMetricsTracker metricsTracker,
+    required this._ref,
+    required this._metricsTracker,
     this.refreshInterval = const Duration(seconds: 3),
-  })  : _ref = ref,
-        _metricsTracker = metricsTracker;
+  });
 
   // ━━━━━━━━━━━━━━━━━━━━━━ LIFECYCLE ━━━━━━━━━━━━━━━━━━━━━━
 
@@ -111,7 +110,9 @@ class RuntimeDiagnosticsCoordinator {
     _refreshTimer = Timer.periodic(refreshInterval, (_) => _capture());
     // Capture immediately on start
     _capture();
-    debugPrint('[RuntimeDiagnosticsCoordinator] Started — interval=${refreshInterval.inSeconds}s');
+    debugPrint(
+      '[RuntimeDiagnosticsCoordinator] Started — interval=${refreshInterval.inSeconds}s',
+    );
   }
 
   void stop() {
@@ -177,7 +178,9 @@ class RuntimeDiagnosticsCoordinator {
     // ── Sequence snapshot ──────────────────────────────────────────────────
     final branchId = currentEpoch.branchId;
     final sequence = SequenceDiagnosticsSnapshot(
-      expectedSequence: orchestrator.sequenceValidator.expectedSequenceFor(branchId),
+      expectedSequence: orchestrator.sequenceValidator.expectedSequenceFor(
+        branchId,
+      ),
       processedEventCount: _metricsTracker.messagesReceived,
       duplicatesRejected: _metricsTracker.duplicatesRejected,
       gapsDetected: _metricsTracker.gapsDetected,
@@ -187,9 +190,8 @@ class RuntimeDiagnosticsCoordinator {
 
     // ── Projection snapshot ────────────────────────────────────────────────
     final projStats = orchestrator.rebuildEngine.getStats();
-    final lastRebuildTimes = (projStats['lastRebuildTimes'] as Map?)
-            ?.cast<String, DateTime>() ??
-        {};
+    final lastRebuildTimes =
+        (projStats['lastRebuildTimes'] as Map?)?.cast<String, DateTime>() ?? {};
     final projections = ProjectionDiagnosticsSnapshot(
       registeredProjections: projStats['registeredProjections'] as int? ?? 0,
       currentlyRebuilding: projStats['currentlyRebuilding'] as int? ?? 0,
@@ -215,7 +217,8 @@ class RuntimeDiagnosticsCoordinator {
     // ── Presence snapshot ──────────────────────────────────────────────────
     final presenceStats = presenceRuntime.getStats();
     final heartbeatStats =
-        (presenceStats['heartbeatStats'] as Map?)?.cast<String, dynamic>() ?? {};
+        (presenceStats['heartbeatStats'] as Map?)?.cast<String, dynamic>() ??
+        {};
     final presence = PresenceDiagnosticsSnapshot(
       activePresenceRecords: presenceStats['presenceCount'] as int? ?? 0,
       activeHeartbeats: heartbeatStats['activeHeartbeats'] as int? ?? 0,
@@ -296,17 +299,19 @@ class RuntimeDiagnosticsCoordinator {
 
 // ━━━━━━━━━━━━━━━━━━━━━━ PROVIDERS ━━━━━━━━━━━━━━━━━━━━━━
 
-final transportMetricsTrackerProvider = Provider<TransportMetricsTracker>((ref) {
+final transportMetricsTrackerProvider = Provider<TransportMetricsTracker>((
+  ref,
+) {
   return TransportMetricsTracker();
 });
 
 final runtimeDiagnosticsCoordinatorProvider =
     Provider<RuntimeDiagnosticsCoordinator>((ref) {
-  final tracker = ref.watch(transportMetricsTrackerProvider);
-  final coordinator = RuntimeDiagnosticsCoordinator(
-    ref: ref,
-    metricsTracker: tracker,
-  );
-  ref.onDispose(coordinator.dispose);
-  return coordinator;
-});
+      final tracker = ref.watch(transportMetricsTrackerProvider);
+      final coordinator = RuntimeDiagnosticsCoordinator(
+        ref: ref,
+        metricsTracker: tracker,
+      );
+      ref.onDispose(coordinator.dispose);
+      return coordinator;
+    });
