@@ -4,6 +4,7 @@ import 'package:hive/hive.dart';
 import '../utils/logger.dart';
 import 'network_info.dart';
 import 'offline_queue.dart';
+import '../device/device_fingerprint_provider.dart';
 
 import 'dio_client.dart';
 
@@ -27,5 +28,6 @@ final offlineQueueManagerProvider = Provider<OfflineQueueManager>((ref) {
 final dioClientProvider = Provider<DioClient>((ref) {
   final talker = ref.watch(talkerProvider);
   final cacheBox = ref.watch(apiCacheBoxProvider);
-  return DioClient(talker: talker, cacheBox: cacheBox);
+  final fingerprint = ref.watch(deviceFingerprintProvider);
+  return DioClient(talker: talker, cacheBox: cacheBox, deviceFingerprint: fingerprint);
 });

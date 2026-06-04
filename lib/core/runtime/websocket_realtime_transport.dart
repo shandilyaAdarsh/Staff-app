@@ -42,12 +42,20 @@ class WebSocketRealtimeTransport implements RealtimeTransport {
       if (runtimeToken != null && runtimeToken.isNotEmpty) {
         // Format: "<token>" — the backend splits on ',' and picks the last part.
         headers['Sec-WebSocket-Protocol'] = runtimeToken;
+      } else {
+        // Cannot connect without a valid token
+        _status = RealtimeTransportStatus.error;
+        _messageController.add(
+          RealtimeTransportMessage(
+            rawPayload: '',
+            error: Exception('No runtime token available for connection'),
+          ),
+        );
+        debugPrint('[Transport] Skipping connection: No runtime token.');
+        return;
       }
 
-      _channel = WebSocketChannel.connect(
-        url,
-        protocols: runtimeToken != null ? [runtimeToken] : null,
-      );
+      _channel = WebSocketChannel.connect(url, protocols: [runtimeToken]);
 
       _subscription = _channel!.stream.listen(
         _onRawMessage,
@@ -63,10 +71,12 @@ class WebSocketRealtimeTransport implements RealtimeTransport {
       _sendSyncFrame();
     } catch (error, stackTrace) {
       _status = RealtimeTransportStatus.error;
-      _messageController.add(RealtimeTransportMessage(
-        rawPayload: '',
-        error: Exception('WebSocket connect failed: $error'),
-      ));
+      _messageController.add(
+        RealtimeTransportMessage(
+          rawPayload: '',
+          error: Exception('WebSocket connect failed: $error'),
+        ),
+      );
       if (kDebugMode) {
         debugPrint('[Transport] WebSocket connection failed: $error');
         debugPrint('$stackTrace');
@@ -107,7 +117,9 @@ class WebSocketRealtimeTransport implements RealtimeTransport {
       });
       _channel?.sink.add(frame);
       if (kDebugMode) {
-        debugPrint('[Transport] SYNC frame sent (last_seq=$_lastDeliveredSequence)');
+        debugPrint(
+          '[Transport] SYNC frame sent (last_seq=$_lastDeliveredSequence)',
+        );
       }
     } catch (e) {
       debugPrint('[Transport] Failed to send SYNC frame: $e');
@@ -117,9 +129,13 @@ class WebSocketRealtimeTransport implements RealtimeTransport {
   /// Send ACK frame to confirm delivery of an event sequence.
   void _sendAck(int lastReceivedSequence) {
     try {
-      if (_status != RealtimeTransportStatus.connected || _channel == null) return;
+      if (_status != RealtimeTransportStatus.connected || _channel == null)
+        return;
       _channel!.sink.add(
-        jsonEncode({'type': 'ACK', 'last_received_sequence': lastReceivedSequence}),
+        jsonEncode({
+          'type': 'ACK',
+          'last_received_sequence': lastReceivedSequence,
+        }),
       );
       _lastDeliveredSequence = lastReceivedSequence;
     } catch (e) {
@@ -141,24 +157,27 @@ class WebSocketRealtimeTransport implements RealtimeTransport {
         _sendAck(seq);
       }
 
-      _messageController.add(RealtimeTransportMessage(
-        rawPayload: payload,
-        json: jsonPayload,
-      ));
+      _messageController.add(
+        RealtimeTransportMessage(rawPayload: payload, json: jsonPayload),
+      );
     } catch (error) {
-      _messageController.add(RealtimeTransportMessage(
-        rawPayload: payload,
-        error: Exception('Failed to decode transport message: $error'),
-      ));
+      _messageController.add(
+        RealtimeTransportMessage(
+          rawPayload: payload,
+          error: Exception('Failed to decode transport message: $error'),
+        ),
+      );
     }
   }
 
   void _onRawError(dynamic error, StackTrace? stackTrace) {
     _status = RealtimeTransportStatus.error;
-    _messageController.add(RealtimeTransportMessage(
-      rawPayload: '',
-      error: Exception('WebSocket transport error: $error'),
-    ));
+    _messageController.add(
+      RealtimeTransportMessage(
+        rawPayload: '',
+        error: Exception('WebSocket transport error: $error'),
+      ),
+    );
     if (kDebugMode) {
       debugPrint('[Transport] WebSocket error: $error');
       debugPrint('$stackTrace');
@@ -169,10 +188,9 @@ class WebSocketRealtimeTransport implements RealtimeTransport {
     _status = RealtimeTransportStatus.disconnected;
     // Do NOT add an error message on a clean close — the SyncManager's onDone
     // callback will handle reconnect scheduling via _onDisconnected.
-    _messageController.add(RealtimeTransportMessage(
-      rawPayload: '',
-      error: null,
-    ));
+    _messageController.add(
+      RealtimeTransportMessage(rawPayload: '', error: null),
+    );
   }
 
   String? _normalizePayload(dynamic rawMessage) {

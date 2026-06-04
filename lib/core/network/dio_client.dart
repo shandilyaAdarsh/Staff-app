@@ -13,10 +13,12 @@ class DioClient {
   final Dio _dio;
   final Talker _talker;
   final Box<String> _cacheBox;
+  final String deviceFingerprint;
 
   DioClient({
     required Talker talker,
     required Box<String> cacheBox,
+    required this.deviceFingerprint,
   })  : _talker = talker,
         _cacheBox = cacheBox,
         _dio = Dio(
@@ -31,6 +33,16 @@ class DioClient {
             },
           ),
         ) {
+    // Inject headers interceptor
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          options.headers['X-Device-Fingerprint'] = deviceFingerprint;
+          return handler.next(options);
+        },
+      ),
+    );
+
     // Add caching interceptor first to resolve cached items instantly
     _dio.interceptors.add(DioCacheInterceptor(_cacheBox, _talker));
 

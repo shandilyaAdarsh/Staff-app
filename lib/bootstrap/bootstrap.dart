@@ -11,9 +11,11 @@ import '../core/config/app_config.dart';
 import '../core/config/environment.dart';
 import '../core/network/secure_storage.dart';
 import '../core/network/network_providers.dart';
+import '../core/device/device_fingerprint_provider.dart';
 import '../core/utils/logger.dart';
 import '../app/app.dart';
 import '../app/observers/provider_observer.dart';
+import '../features/auth/presentation/state/auth_notifier.dart';
 
 Future<void> bootstrap({
   required Environment environment,
@@ -72,9 +74,10 @@ Future<void> bootstrap({
 
     // Hydrate base system preferences
     final sharedPreferences = await SharedPreferences.getInstance();
+    final fingerprint = await DeviceFingerprintService.initFingerprint(sharedPreferences);
 
     // Create provider container
-    final container = ProviderScope(
+    final container = ProviderContainer(
       observers: [
         AppProviderObserver(),
       ],
@@ -85,11 +88,23 @@ Future<void> bootstrap({
         talkerProvider.overrideWithValue(talker),
         apiCacheBoxProvider.overrideWithValue(apiCacheBox),
         offlineQueueBoxProvider.overrideWithValue(offlineQueueBox),
+        deviceFingerprintProvider.overrideWithValue(fingerprint),
       ],
-      child: const OrderlyyApp(),
     );
 
-    runApp(container);
+    // Pre-load staff list if device context exists
+    try {
+      await container.read(authNotifierProvider.notifier).loadInitialData();
+    } catch (e) {
+      talker.error('[Bootstrap] Failed to load initial data: $e');
+    }
+
+    runApp(
+      UncontrolledProviderScope(
+        container: container,
+        child: const OrderlyyApp(),
+      ),
+    );
   }, (error, stack) {
     talker.handle(error, stack, '[Bootstrap Error] Unhandled Exception');
   });

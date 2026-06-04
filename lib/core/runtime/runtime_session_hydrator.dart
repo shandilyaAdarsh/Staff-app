@@ -141,13 +141,13 @@ class RuntimeSessionHydrator {
 
   /// Exchange valid Supabase token for short-lived Runtime JWT.
   Future<bool> _exchangeRuntimeToken(String branchId) async {
-    final supabaseToken = Supabase.instance.client.auth.currentSession?.accessToken;
+    const secureStorage = SecureLocalStorage();
+    final supabaseToken = await secureStorage.read('access_token');
     if (supabaseToken == null) {
-      debugPrint('[RuntimeSessionHydrator] No active Supabase platform token available for exchange.');
+      debugPrint('[RuntimeSessionHydrator] No active platform token available for exchange.');
       return false;
     }
 
-    const secureStorage = SecureLocalStorage();
     var deviceSessionId = await secureStorage.read('device_session_id');
     if (deviceSessionId == null) {
       deviceSessionId = const Uuid().v4();

@@ -177,7 +177,7 @@ class WelcomeScreen extends ConsumerWidget {
                             height: 60,
                             child: FilledButton(
                               onPressed: () {
-                                context.push('/org-select');
+                                context.go('/device-registration');
                               },
                               style: FilledButton.styleFrom(
                                 backgroundColor: brandRed,

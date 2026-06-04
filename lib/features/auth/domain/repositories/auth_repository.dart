@@ -5,6 +5,7 @@ import '../entities/organization.dart';
 import '../entities/branch.dart';
 import '../entities/staff_member.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/network/secure_storage.dart';
 
 class AuthRepository {
   final SupabaseClient _supabase;
@@ -12,83 +13,79 @@ class AuthRepository {
 
   AuthRepository(this._supabase, this._dio);
 
-  Future<List<Organization>> getOrganizations() async {
+  Future<Map<String, dynamic>?> adminLogin(String email, String password) async {
     try {
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final response = await _dio.get(
-        '/api/v1/public/organizations?t=$timestamp',
-        options: Options(extra: {'skip_cache': true}),
-      );
-      final data = response.data['data'] as List;
-      
-      return data.map((json) {
-        return Organization(
-          id: json['id'] as String,
-          name: json['name'] as String,
+      final response = await _dio.post('/api/v1/auth/login', data: {
+        'email': email,
+        'password': password,
+        'device_fingerprint': _dio.deviceFingerprint,
+      });
+
+      if (response.statusCode == 200 && response.data['success']) {
+        final data = response.data['data'];
+        final accessToken = data['access_token'];
+        
+        const secureStorage = SecureLocalStorage();
+        await secureStorage.write('access_token', accessToken);
+        
+        // Use the token to fetch the context
+        final contextResponse = await _dio.get(
+          '/api/v1/context/bootstrap',
+          options: Options(
+            headers: {'Authorization': 'Bearer $accessToken'},
+          ),
         );
-      }).toList();
-    } catch (e, stack) {
-      debugPrint('[AuthRepository] getOrganizations Error: $e');
-      debugPrint('[AuthRepository] Stack: $stack');
-      return [];
-    }
-  }
 
-  Future<List<Branch>> getBranchesForOrganization(String orgId) async {
-    try {
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final response = await _dio.get(
-        '/api/v1/public/organizations/$orgId/branches?t=$timestamp',
-        options: Options(extra: {'skip_cache': true}),
-      );
-      final data = response.data['data'] as List;
-
-      return data.map((json) {
-        return Branch(
-          id: json['id'] as String,
-          name: json['name'] as String,
-          status: json['status'] == 'active' ? BranchStatus.open : BranchStatus.busy,
-          syncPercentage: '100%',
-          activeStaff: 0,
-        );
-      }).toList();
-    } catch (e, stack) {
-      debugPrint('[AuthRepository] getBranches Error: $e');
-      debugPrint('[AuthRepository] Stack: $stack');
-      return [];
-    }
-  }
-
-  Future<StaffMember?> login(String employeeId, String pin, {String? branchId, String? orgId}) async {
-    try {
-      if (branchId == null || orgId == null) {
-        // Fallback for safety, though we shouldn't hit this in typical flow
-        debugPrint('[AuthRepository] branchId and orgId are required for PIN login');
-        return null;
+        if (contextResponse.statusCode == 200 && contextResponse.data['success']) {
+          return {
+            'tenantId': contextResponse.data['data']['tenant']['id'],
+            'branches': contextResponse.data['data']['branches'],
+            'access_token': accessToken,
+          };
+        }
       }
-      
+      return null;
+    } catch (e) {
+      debugPrint('[AuthRepository] adminLogin error: $e');
+      return null;
+    }
+  }
+
+  Future<List<StaffMember>> getStaffForBranch(String tenantId, String branchId, String token) async {
+    try {
+      // NOTE: This requires the backend /api/v1/tenants/:tenantId/staff endpoint to be implemented and authenticated!
+      // In a real POS, we fetch staff via the tenant route using a device token or admin token.
       final response = await _dio.get(
-        '/api/v1/public/organizations/$orgId/branches/$branchId/staff',
-        options: Options(extra: {'skip_cache': true}),
-      );
-      final staffList = response.data['data'] as List<dynamic>;
-      
-      final row = staffList.firstWhere(
-        (staff) => staff['pin'] == pin && staff['employee_id'] == employeeId,
-        orElse: () => null,
+        '/api/v1/tenants/$tenantId/staff',
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          extra: {'skip_cache': true},
+        ),
       );
 
-      if (row == null) return null;
+      final data = response.data['data'] as List<dynamic>;
+      return data.map((row) {
+        return StaffMember(
+          id: row['id'] as String,
+          employeeId: row['employee_id'] as String?,
+          name: row['name'] as String,
+          pin: row['pin'] as String? ?? '',
+          role: _mapRole(row['role'] as String?),
+          section: row['section'] as String?,
+        );
+      }).toList();
+    } catch (e) {
+      debugPrint('[AuthRepository] getStaffForBranch error: $e');
+      return [];
+    }
+  }
 
-      return StaffMember(
-        id: row['id'] as String,
-        name: row['name'] as String,
-        pin: row['pin'] as String? ?? '',
-        role: _mapRole(row['role'] as String?),
-        section: row['section'] as String?,
+  Future<StaffMember?> loginWithPin(List<StaffMember> staffList, String employeeId, String pin) async {
+    try {
+      return staffList.firstWhere(
+        (staff) => staff.pin == pin && (staff.employeeId == employeeId || staff.id == employeeId),
       );
     } catch (e) {
-      debugPrint('[AuthRepository] loginWithPIN error: $e');
       return null;
     }
   }

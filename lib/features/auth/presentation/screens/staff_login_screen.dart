@@ -29,22 +29,6 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
     super.initState();
   }
 
-  Future<List<dynamic>> _fetchStaff(String orgId, String branchId) async {
-    try {
-      final dio = ref.read(dioClientProvider);
-      final response = await dio.get(
-        '/api/v1/public/organizations/$orgId/branches/$branchId/staff',
-        options: Options(extra: {'skip_cache': true}),
-      );
-      if (response.data != null && response.data['data'] != null) {
-        return response.data['data'] as List<dynamic>;
-      }
-      return [];
-    } catch (e) {
-      throw Exception('Failed to fetch staff from API');
-    }
-  }
-
   final TextEditingController _pinController = TextEditingController();
   final FocusNode _pinFocus = FocusNode();
   final TextEditingController _employeeIdController = TextEditingController();
@@ -72,16 +56,25 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
         _localError = null;
       });
       try {
-        final authState = ref.read(authNotifierProvider);
-        final staffList = await _fetchStaff(authState.selectedOrg!.id, authState.selectedBranch!.id);
-        final staff = staffList.firstWhere(
-          (s) => s['employee_id'] == employeeId,
-          orElse: () => null,
-        );
+        final notifier = ref.read(authNotifierProvider.notifier);
+        // staff list was loaded during app boot if context exists
+        final staffList = notifier.mockStaff;
+        
+        // Let's see if the employeeId exists
+        var staff;
+        try {
+          staff = staffList.firstWhere((s) => s.employeeId == employeeId || s.id == employeeId);
+        } catch (_) {
+          staff = null;
+        }
+
         if (staff != null) {
           setState(() {
             _isEnteringPin = true;
-            _matchedStaff = staff;
+            _matchedStaff = {
+              'name': staff.name,
+              'role': staff.role.name,
+            };
             _isLoading = false;
           });
           Future.microtask(() => _pinFocus.requestFocus());
@@ -136,7 +129,7 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_rounded, color: isDark ? Colors.white : const Color(0xFF0F172A)),
-          onPressed: () => context.go('/branch-select'),
+          onPressed: () => context.go('/device-registration'),
         ),
       ),
       extendBodyBehindAppBar: true,
@@ -216,7 +209,7 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
             left: 24,
             child: IconButton(
               icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-              onPressed: () => context.go('/branch-select'),
+              onPressed: () => context.go('/device-registration'),
               tooltip: 'Go Back',
             ),
           ),

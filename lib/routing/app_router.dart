@@ -14,11 +14,11 @@ import '../features/auth/presentation/state/auth_notifier.dart';
 import '../features/auth/presentation/state/auth_state.dart';
 import '../features/auth/presentation/screens/splash_screen.dart';
 import '../features/auth/presentation/screens/welcome_screen.dart';
-import '../features/auth/presentation/screens/organization_selection_screen.dart';
-import '../features/auth/presentation/screens/branch_selection_screen.dart';
+import '../features/auth/presentation/screens/device_registration_screen.dart';
 import '../features/auth/presentation/screens/staff_login_screen.dart';
 import '../features/auth/presentation/screens/shift_start_screen.dart';
 import '../features/auth/presentation/screens/session_lock_screen.dart';
+import '../core/storage/device_context_store.dart';
 import '../features/dashboard/presentation/screens/operational_dashboard_screen.dart';
 import '../features/orders/presentation/screens/active_orders_feed_screen.dart';
 import '../features/orders/presentation/screens/order_details_screen.dart';
@@ -55,8 +55,6 @@ final activeWaiterCallsCountProvider = Provider<int>((ref) {
   return calls.length;
 });
 
-
-
 // RouterNotifier acts as a bridge between Riverpod and GoRouter.
 // It listens to auth state changes and notifies GoRouter to trigger a redirect.
 class RouterNotifier extends ChangeNotifier {
@@ -85,14 +83,14 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/splash',
     debugLogDiagnostics: true,
     refreshListenable: notifier,
-    observers: [
-      AppRoutingObserver(),
-    ],
+    observers: [AppRoutingObserver()],
     redirect: (context, state) {
       final authState = ref.read(authNotifierProvider);
       final loc = state.uri.path;
 
-      debugPrint('[ROUTER] redirect evaluation: location=$loc, isLocked=${authState.isLocked}, isShiftStarted=${authState.isShiftStarted}, org=${authState.selectedOrg?.name}, branch=${authState.selectedBranch?.name}');
+      debugPrint(
+        '[ROUTER] redirect evaluation: location=$loc, isLocked=${authState.isLocked}, isShiftStarted=${authState.isShiftStarted}, org=${authState.selectedOrg?.name}, branch=${authState.selectedBranch?.name}',
+      );
 
       // Handle the default platform route
       if (loc == '/') {
@@ -132,37 +130,34 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       // Main authentication routing state machine
-      if (authState.selectedOrg == null) {
-        if (loc != '/welcome' && loc != '/org-select') {
+      final deviceStore = ref.read(deviceContextStoreProvider);
+
+      if (!deviceStore.hasContext) {
+        if (loc != '/welcome' && loc != '/device-registration') {
           return '/welcome';
         }
         return null;
       }
 
-      if (authState.selectedBranch == null) {
-        if (loc != '/branch-select' && loc != '/org-select') {
-          return '/branch-select';
-        }
-        return null;
-      }
-
       if (authState.loggedInStaff == null) {
-        if (loc != '/login' && loc != '/branch-select' && loc != '/org-select') {
+        if (loc != '/login' && loc != '/device-registration') {
           return '/login';
         }
         return null;
       }
 
       if (!authState.isShiftStarted) {
-        if (loc != '/shift-start' && loc != '/login' && loc != '/branch-select' && loc != '/org-select') {
+        if (loc != '/shift-start' &&
+            loc != '/login' &&
+            loc != '/device-registration') {
           return '/shift-start';
         }
         return null;
       }
 
       // If logged in, shift started, operational, and not locked, block access to auth configuration screens
-      final isAuthScreen = loc == '/org-select' ||
-          loc == '/branch-select' ||
+      final isAuthScreen =
+          loc == '/device-registration' ||
           loc == '/login' ||
           loc == '/shift-start';
 
@@ -185,14 +180,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const WelcomeScreen(),
       ),
       GoRoute(
-        path: '/org-select',
-        name: 'org-select',
-        builder: (context, state) => const OrganizationSelectionScreen(),
-      ),
-      GoRoute(
-        path: '/branch-select',
-        name: 'branch-select',
-        builder: (context, state) => const BranchSelectionScreen(),
+        path: '/device-registration',
+        name: 'device-registration',
+        builder: (context, state) => const DeviceRegistrationScreen(),
       ),
       GoRoute(
         path: '/login',
@@ -328,16 +318,56 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       // ── Volume II Routes ──────────────────────────────────────────────
-      GoRoute(path: '/shift/dashboard', name: 'shift-dashboard', builder: (context, state) => const ShiftDashboardScreen()),
-      GoRoute(path: '/shift/close', name: 'shift-close', builder: (context, state) => const ShiftCloseScreen()),
-      GoRoute(path: '/staff/presence', name: 'staff-presence', builder: (context, state) => const StaffPresenceScreen()),
-      GoRoute(path: '/realtime/status', name: 'realtime-status', builder: (context, state) => const RealtimeStatusScreen()),
-      GoRoute(path: '/realtime/sync-queue', name: 'sync-queue', builder: (context, state) => const PendingSyncScreen()),
-      GoRoute(path: '/realtime/recovery', name: 'operational-recovery', builder: (context, state) => const OperationalRecoveryScreen()),
-      GoRoute(path: '/diagnostics', name: 'runtime-diagnostics', builder: (context, state) => const RuntimeDiagnosticsScreen()),
-      GoRoute(path: '/manager/analytics', name: 'floor-analytics', builder: (context, state) => const FloorAnalyticsScreen()),
-      GoRoute(path: '/manager/staff-performance', name: 'staff-performance', builder: (context, state) => const StaffPerformanceScreen()),
-      GoRoute(path: '/manager/alerts', name: 'operational-alerts', builder: (context, state) => const OperationalAlertsScreen()),
+      GoRoute(
+        path: '/shift/dashboard',
+        name: 'shift-dashboard',
+        builder: (context, state) => const ShiftDashboardScreen(),
+      ),
+      GoRoute(
+        path: '/shift/close',
+        name: 'shift-close',
+        builder: (context, state) => const ShiftCloseScreen(),
+      ),
+      GoRoute(
+        path: '/staff/presence',
+        name: 'staff-presence',
+        builder: (context, state) => const StaffPresenceScreen(),
+      ),
+      GoRoute(
+        path: '/realtime/status',
+        name: 'realtime-status',
+        builder: (context, state) => const RealtimeStatusScreen(),
+      ),
+      GoRoute(
+        path: '/realtime/sync-queue',
+        name: 'sync-queue',
+        builder: (context, state) => const PendingSyncScreen(),
+      ),
+      GoRoute(
+        path: '/realtime/recovery',
+        name: 'operational-recovery',
+        builder: (context, state) => const OperationalRecoveryScreen(),
+      ),
+      GoRoute(
+        path: '/diagnostics',
+        name: 'runtime-diagnostics',
+        builder: (context, state) => const RuntimeDiagnosticsScreen(),
+      ),
+      GoRoute(
+        path: '/manager/analytics',
+        name: 'floor-analytics',
+        builder: (context, state) => const FloorAnalyticsScreen(),
+      ),
+      GoRoute(
+        path: '/manager/staff-performance',
+        name: 'staff-performance',
+        builder: (context, state) => const StaffPerformanceScreen(),
+      ),
+      GoRoute(
+        path: '/manager/alerts',
+        name: 'operational-alerts',
+        builder: (context, state) => const OperationalAlertsScreen(),
+      ),
     ],
   );
 });
@@ -364,7 +394,8 @@ class NavigationShellLayout extends ConsumerWidget {
       selectedIndex = 1;
     } else if (location.startsWith('/dashboard')) {
       selectedIndex = 2;
-    } else if (location.startsWith('/profile') || location.startsWith('/diagnostics')) {
+    } else if (location.startsWith('/profile') ||
+        location.startsWith('/diagnostics')) {
       selectedIndex = 3;
     }
 
@@ -387,7 +418,13 @@ class NavigationShellLayout extends ConsumerWidget {
       // Persistent top-bar with live notification bell
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(60),
-        child: _buildTopActionBar(context, unreadNotifCount, activeCallCount, authState.selectedBranch?.name ?? 'Main Kitchen', isDark),
+        child: _buildTopActionBar(
+          context,
+          unreadNotifCount,
+          activeCallCount,
+          authState.selectedBranch?.name ?? 'Main Kitchen',
+          isDark,
+        ),
       ),
       body: Stack(
         children: [
@@ -412,7 +449,9 @@ class NavigationShellLayout extends ConsumerWidget {
             ),
           ],
           border: Border(
-            top: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+            top: BorderSide(
+              color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+            ),
           ),
         ),
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -420,10 +459,39 @@ class NavigationShellLayout extends ConsumerWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(context, Icons.table_restaurant_rounded, 'Tables', selectedIndex == 0, isDark, () => context.go('/tables'), badgeCount: activeCallCount),
-              _buildNavItem(context, Icons.receipt_long_rounded, 'Orders', selectedIndex == 1, isDark, () => context.go('/orders-feed')),
-              _buildNavItem(context, Icons.dashboard_rounded, 'Dashboard', selectedIndex == 2, isDark, () => context.go('/dashboard')),
-              _buildNavItem(context, Icons.person_rounded, 'Profile', selectedIndex == 3, isDark, () => context.go('/profile')),
+              _buildNavItem(
+                context,
+                Icons.table_restaurant_rounded,
+                'Tables',
+                selectedIndex == 0,
+                isDark,
+                () => context.go('/tables'),
+                badgeCount: activeCallCount,
+              ),
+              _buildNavItem(
+                context,
+                Icons.receipt_long_rounded,
+                'Orders',
+                selectedIndex == 1,
+                isDark,
+                () => context.go('/orders-feed'),
+              ),
+              _buildNavItem(
+                context,
+                Icons.dashboard_rounded,
+                'Dashboard',
+                selectedIndex == 2,
+                isDark,
+                () => context.go('/dashboard'),
+              ),
+              _buildNavItem(
+                context,
+                Icons.person_rounded,
+                'Profile',
+                selectedIndex == 3,
+                isDark,
+                () => context.go('/profile'),
+              ),
             ],
           ),
         ),
@@ -431,12 +499,24 @@ class NavigationShellLayout extends ConsumerWidget {
     );
   }
 
-  Widget _buildNavItem(BuildContext context, IconData icon, String label, bool isActive, bool isDark, VoidCallback onTap, {int badgeCount = 0}) {
+  Widget _buildNavItem(
+    BuildContext context,
+    IconData icon,
+    String label,
+    bool isActive,
+    bool isDark,
+    VoidCallback onTap, {
+    int badgeCount = 0,
+  }) {
     const activeColor = Color(0xFFE31E24);
     final activeBg = activeColor.withValues(alpha: 0.1);
     final inactiveColor = isDark ? Colors.white54 : const Color(0xFF64748B);
 
-    Widget iconWidget = Icon(icon, color: isActive ? activeColor : inactiveColor, size: 24);
+    Widget iconWidget = Icon(
+      icon,
+      color: isActive ? activeColor : inactiveColor,
+      size: 24,
+    );
     if (badgeCount > 0) {
       iconWidget = Badge(
         label: Text('$badgeCount'),
@@ -482,7 +562,8 @@ class NavigationShellLayout extends ConsumerWidget {
   ) {
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).appBarTheme.backgroundColor ??
+        color:
+            Theme.of(context).appBarTheme.backgroundColor ??
             Theme.of(context).scaffoldBackgroundColor,
         border: Border(
           bottom: BorderSide(
@@ -501,14 +582,21 @@ class NavigationShellLayout extends ConsumerWidget {
               // Store Title
               Row(
                 children: [
-                  Icon(Icons.storefront_rounded, color: isDark ? const Color(0xFFffb4ab) : const Color(0xFFE31E24)),
+                  Icon(
+                    Icons.storefront_rounded,
+                    color: isDark
+                        ? const Color(0xFFffb4ab)
+                        : const Color(0xFFE31E24),
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     branchName,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
-                      color: isDark ? const Color(0xFFffb4ab) : const Color(0xFFE31E24),
+                      color: isDark
+                          ? const Color(0xFFffb4ab)
+                          : const Color(0xFFE31E24),
                     ),
                   ),
                 ],
@@ -561,10 +649,9 @@ class NavigationShellLayout extends ConsumerWidget {
                   padding: const EdgeInsets.only(left: 4, bottom: 16),
                   child: Text(
                     'Quick Access',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w900),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
                 Row(
@@ -733,4 +820,3 @@ class _QuickAccessTile extends StatelessWidget {
     );
   }
 }
-

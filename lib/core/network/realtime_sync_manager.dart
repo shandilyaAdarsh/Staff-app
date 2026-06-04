@@ -318,14 +318,18 @@ class RealtimeSyncManager {
   }
 
   void _sendHeartbeat() {
-    try {
-      _transport.send({'type': 'ping'});
-      debugPrint('[SYNC] Heartbeat ping sent.');
-      _startHeartbeatTimeout();
-    } catch (e) {
-      debugPrint('[SYNC] Failed to send heartbeat: $e');
+    if (_transport.status != RealtimeTransportStatus.connected) {
       _onSilentConnectionLoss();
+      return;
     }
+    
+    _transport.send({'type': 'ping'}).catchError((e) {
+      debugPrint('[SYNC] Failed to send heartbeat async: $e');
+      _onSilentConnectionLoss();
+    });
+    
+    debugPrint('[SYNC] Heartbeat ping sent.');
+    _startHeartbeatTimeout();
   }
 
   void _startHeartbeatTimeout() {

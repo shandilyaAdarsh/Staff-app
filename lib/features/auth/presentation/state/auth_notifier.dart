@@ -1,12 +1,15 @@
 // lib/features/auth/presentation/state/auth_notifier.dart
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import '../../domain/entities/organization.dart';
-import '../../domain/entities/branch.dart';
 import '../../domain/entities/staff_member.dart';
 import 'auth_state.dart';
+import '../../domain/entities/organization.dart';
+import '../../domain/entities/branch.dart';
 
+import '../../../../core/storage/device_context_store.dart';
 import '../../providers/auth_repository_provider.dart';
 import '../../../../core/runtime/runtime.dart';
+import '../../../../core/network/secure_storage.dart';
+import 'package:flutter/foundation.dart';
 
 part 'auth_notifier.g.dart';
 
@@ -14,56 +17,88 @@ part 'auth_notifier.g.dart';
 class AuthNotifier extends _$AuthNotifier {
   @override
   AuthState build() {
-    // Initial data is loaded by UI to show loading state
     return const AuthState();
   }
 
   Future<void> loadInitialData() async {
+    // No longer loading mock public organizations.
+    // Instead, this will just check if we have a saved context.
+    final store = ref.read(deviceContextStoreProvider);
+    debugPrint('[AuthNotifier] loadInitialData called. hasContext: ${store.hasContext}, branchId: ${store.branchId}, branchName: ${store.branchName}');
+    if (store.hasContext) {
+      state = state.copyWith(
+        selectedBranch: Branch(
+          id: store.branchId ?? '',
+          name: store.branchName ?? 'Main Branch',
+          status: BranchStatus.open,
+          syncPercentage: '100%',
+          activeStaff: 0,
+        ),
+        selectedOrg: Organization(id: store.tenantId ?? '', name: 'Orderlyy'),
+      );
+      // Load staff for the saved branch
+      await loadStaffForBranch();
+    }
+  }
+
+  List<StaffMember> _staffMembers = [];
+  List<StaffMember> get mockStaff => _staffMembers;
+
+  Future<void> loadStaffForBranch() async {
+    final store = ref.read(deviceContextStoreProvider);
+    if (!store.hasContext) return;
+
+    // Need an admin/device token to fetch staff
+    const secureStorage = SecureLocalStorage();
+    final token = await secureStorage.read('access_token') ?? '';
     final repo = ref.read(authRepositoryProvider);
-    _organizations = await repo.getOrganizations();
-    print('Fetched organizations: ${_organizations.length}');
-    // Force a state update to trigger rebuilds for any watchers
+    _staffMembers = await repo.getStaffForBranch(
+      store.tenantId!,
+      store.branchId!,
+      token,
+    );
     state = state.copyWith();
   }
 
-  List<Organization> get mockOrganizations => _organizations;
-  Map<String, List<Branch>> get mockBranches => _branches;
-
-  // Preloaded mock data for offline resiliency and simulation
-  // Now loaded dynamically from AuthRepository
-  List<Organization> _organizations = [];
-  final Map<String, List<Branch>> _branches = {};
-
-  void selectOrganization(Organization org) {
-    state = state.copyWith(
-      selectedOrg: org,
-      selectedBranch: null,
-      loggedInStaff: null,
-      isShiftStarted: false,
-      errorMessage: null,
-    );
+  Future<Map<String, dynamic>?> adminLogin(
+    String email,
+    String password,
+  ) async {
+    final repo = ref.read(authRepositoryProvider);
+    return await repo.adminLogin(email, password);
   }
 
-  void selectBranch(Branch branch) {
-    state = state.copyWith(
-      selectedBranch: branch,
-      loggedInStaff: null,
-      isShiftStarted: false,
-      errorMessage: null,
+  Future<void> selectAndSaveBranch(
+    String tenantId,
+    String branchId,
+    String branchName,
+  ) async {
+    final store = ref.read(deviceContextStoreProvider);
+    await store.saveContext(
+      tenantId: tenantId,
+      branchId: branchId,
+      branchName: branchName,
     );
+
+    state = state.copyWith(
+      selectedBranch: Branch(
+        id: branchId,
+        name: branchName,
+        status: BranchStatus.open,
+        syncPercentage: '100%',
+        activeStaff: 0,
+      ),
+      selectedOrg: Organization(id: tenantId, name: 'Orderlyy'),
+    );
+
+    await loadStaffForBranch();
   }
 
   Future<bool> login(String employeeId, String pin) async {
     state = state.copyWith(errorMessage: null);
 
-    // Check pin credentials against authoritative repository
     final repo = ref.read(authRepositoryProvider);
-    final staff = await repo.login(
-      employeeId,
-      pin, 
-      branchId: state.selectedBranch?.id,
-      orgId: state.selectedOrg?.id,
-    );
+    final staff = await repo.loginWithPin(_staffMembers, employeeId, pin);
 
     if (staff != null) {
       state = state.copyWith(loggedInStaff: staff, isLocked: false);
@@ -77,7 +112,14 @@ class AuthNotifier extends _$AuthNotifier {
   }
 
   Future<void> startShift(StaffRole role, String section) async {
-    if (state.loggedInStaff == null || state.selectedBranch == null) return;
+    if (state.loggedInStaff == null) {
+      state = state.copyWith(errorMessage: 'Cannot start shift: Staff is not logged in.');
+      return;
+    }
+    if (state.selectedBranch == null) {
+      state = state.copyWith(errorMessage: 'Cannot start shift: Branch is not selected.');
+      return;
+    }
 
     final updatedStaff = state.loggedInStaff!.copyWith(
       role: role,

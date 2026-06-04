@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../domain/entities/staff_member.dart';
 import '../state/auth_notifier.dart';
 
 class ShiftStartScreen extends ConsumerStatefulWidget {
@@ -17,8 +16,10 @@ class ShiftStartScreen extends ConsumerStatefulWidget {
 
 class _ShiftStartScreenState extends ConsumerState<ShiftStartScreen> {
   String _selectedSection = 'Main Hall';
-  
-  final TextEditingController _balanceController = TextEditingController(text: '250.00');
+
+  final TextEditingController _balanceController = TextEditingController(
+    text: '250.00',
+  );
   final TextEditingController _notesController = TextEditingController();
 
   final List<String> _zones = ['Main Hall', 'Patio', 'Bar'];
@@ -29,7 +30,7 @@ class _ShiftStartScreenState extends ConsumerState<ShiftStartScreen> {
     _notesController.dispose();
     super.dispose();
   }
-  
+
   String _getGreeting() {
     final hour = DateTime.now().hour;
     if (hour < 12) return 'Good Morning';
@@ -55,7 +56,9 @@ class _ShiftStartScreenState extends ConsumerState<ShiftStartScreen> {
     final isDesktop = screenWidth >= 768;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : const Color(0xFFF8F9FA),
+      backgroundColor: isDark
+          ? AppColors.darkBackground
+          : const Color(0xFFF8F9FA),
       appBar: AppBar(
         backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         elevation: 0,
@@ -71,7 +74,11 @@ class _ShiftStartScreenState extends ConsumerState<ShiftStartScreen> {
             CircleAvatar(
               radius: 16,
               backgroundColor: const Color(0xFFE31E24).withValues(alpha: 0.1),
-              child: const Icon(Icons.person_rounded, size: 20, color: Color(0xFFE31E24)),
+              child: const Icon(
+                Icons.person_rounded,
+                size: 20,
+                color: Color(0xFFE31E24),
+              ),
             ),
             const SizedBox(width: 12),
             Text(
@@ -86,7 +93,10 @@ class _ShiftStartScreenState extends ConsumerState<ShiftStartScreen> {
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.location_on_rounded, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+            icon: Icon(
+              Icons.location_on_rounded,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
             onPressed: () {},
           ),
           const SizedBox(width: 8),
@@ -122,34 +132,12 @@ class _ShiftStartScreenState extends ConsumerState<ShiftStartScreen> {
                   const SizedBox(height: 32),
 
                   // Main Content Grid
-                  if (isDesktop)
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(flex: 8, child: _buildShiftSetupCard(isDark)),
-                        const SizedBox(width: 32),
-                        Expanded(
-                          flex: 4,
-                          child: Column(
-                            children: [
-                              _buildFloorStatusWidget(isDark),
-                              const SizedBox(height: 24),
-                              _buildWeatherWidget(isDark),
-                            ],
-                          ),
-                        ),
-                      ],
-                    )
-                  else
-                    Column(
-                      children: [
-                        _buildShiftSetupCard(isDark),
-                        const SizedBox(height: 24),
-                        _buildFloorStatusWidget(isDark),
-                        const SizedBox(height: 24),
-                        _buildWeatherWidget(isDark),
-                      ],
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 600),
+                      child: _buildShiftSetupCard(isDark),
                     ),
+                  ),
                 ],
               ),
             ),
@@ -185,8 +173,6 @@ class _ShiftStartScreenState extends ConsumerState<ShiftStartScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          
-
 
           // Zone Selection
           Text(
@@ -212,19 +198,24 @@ class _ShiftStartScreenState extends ConsumerState<ShiftStartScreen> {
               } else {
                 icon = Icons.local_bar_rounded;
               }
-              
+
               return InkWell(
                 onTap: () => setState(() => _selectedSection = zone),
                 borderRadius: BorderRadius.circular(8),
                 child: AnimatedContainer(
                   duration: 200.ms,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
-                    color: isSelected 
+                    color: isSelected
                         ? const Color(0xFFE31E24).withValues(alpha: 0.1)
-                        : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8F9FA)),
+                        : (isDark
+                              ? const Color(0xFF0F172A)
+                              : const Color(0xFFF8F9FA)),
                     border: Border.all(
-                      color: isSelected 
+                      color: isSelected
                           ? const Color(0xFFE31E24)
                           : (isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
                     ),
@@ -234,19 +225,27 @@ class _ShiftStartScreenState extends ConsumerState<ShiftStartScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        icon, 
-                        size: 20, 
-                        color: isSelected ? const Color(0xFFE31E24) : (isDark ? Colors.white54 : const Color(0xFF64748B))
+                        icon,
+                        size: 20,
+                        color: isSelected
+                            ? const Color(0xFFE31E24)
+                            : (isDark
+                                  ? Colors.white54
+                                  : const Color(0xFF64748B)),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         zone,
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 14,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                          color: isSelected 
-                              ? const Color(0xFFE31E24) 
-                              : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w600,
+                          color: isSelected
+                              ? const Color(0xFFE31E24)
+                              : (isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A)),
                         ),
                       ),
                     ],
@@ -257,98 +256,7 @@ class _ShiftStartScreenState extends ConsumerState<ShiftStartScreen> {
           ),
           const SizedBox(height: 24),
 
-          // Starting Balance
-          Text(
-            'STARTING DRAWER BALANCE',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1,
-              color: isDark ? Colors.white54 : const Color(0xFF64748B),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _balanceController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 16,
-              color: isDark ? Colors.white : const Color(0xFF0F172A),
-            ),
-            decoration: InputDecoration(
-              prefixIcon: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                child: Text(
-                  '\$',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 16,
-                    color: isDark ? Colors.white54 : const Color(0xFF64748B),
-                  ),
-                ),
-              ),
-              prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-              filled: true,
-              fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8F9FA),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFFE31E24)),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Shift Notes
-          Text(
-            'SHIFT NOTES (OPTIONAL)',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1,
-              color: isDark ? Colors.white54 : const Color(0xFF64748B),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _notesController,
-            maxLines: 2,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 14,
-              color: isDark ? Colors.white : const Color(0xFF0F172A),
-            ),
-            decoration: InputDecoration(
-              hintText: 'Any specific instructions...',
-              hintStyle: GoogleFonts.plusJakartaSans(
-                fontSize: 14,
-                color: isDark ? Colors.white54 : const Color(0xFF94A3B8),
-              ),
-              filled: true,
-              fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8F9FA),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFFE31E24)),
-              ),
-            ),
-          ),
           const SizedBox(height: 32),
-          
           const Divider(height: 1),
           const SizedBox(height: 24),
 
@@ -357,9 +265,13 @@ class _ShiftStartScreenState extends ConsumerState<ShiftStartScreen> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () async {
-                final currentStaff = ref.read(authNotifierProvider).loggedInStaff;
+                final currentStaff = ref
+                    .read(authNotifierProvider)
+                    .loggedInStaff;
                 if (currentStaff != null) {
-                  await ref.read(authNotifierProvider.notifier).startShift(currentStaff.role, _selectedSection);
+                  await ref
+                      .read(authNotifierProvider.notifier)
+                      .startShift(currentStaff.role, _selectedSection);
                   if (mounted) {
                     final error = ref.read(authNotifierProvider).errorMessage;
                     if (ref.read(authNotifierProvider).isShiftStarted) {
@@ -424,7 +336,11 @@ class _ShiftStartScreenState extends ConsumerState<ShiftStartScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.analytics_rounded, size: 24, color: isDark ? Colors.white54 : const Color(0xFF64748B)),
+              Icon(
+                Icons.analytics_rounded,
+                size: 24,
+                color: isDark ? Colors.white54 : const Color(0xFF64748B),
+              ),
               const SizedBox(width: 8),
               Text(
                 'Floor Status',
@@ -443,9 +359,13 @@ class _ShiftStartScreenState extends ConsumerState<ShiftStartScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF3F4F6),
+                    color: isDark
+                        ? const Color(0xFF0F172A)
+                        : const Color(0xFFF3F4F6),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
+                    border: Border.all(
+                      color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -455,7 +375,9 @@ class _ShiftStartScreenState extends ConsumerState<ShiftStartScreen> {
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                          color: isDark
+                              ? Colors.white54
+                              : const Color(0xFF64748B),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -464,7 +386,9 @@ class _ShiftStartScreenState extends ConsumerState<ShiftStartScreen> {
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 28,
                           fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF0F172A),
                         ),
                       ),
                     ],
@@ -476,9 +400,13 @@ class _ShiftStartScreenState extends ConsumerState<ShiftStartScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF3F4F6),
+                    color: isDark
+                        ? const Color(0xFF0F172A)
+                        : const Color(0xFFF3F4F6),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
+                    border: Border.all(
+                      color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -488,7 +416,9 @@ class _ShiftStartScreenState extends ConsumerState<ShiftStartScreen> {
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                          color: isDark
+                              ? Colors.white54
+                              : const Color(0xFF64748B),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -497,7 +427,9 @@ class _ShiftStartScreenState extends ConsumerState<ShiftStartScreen> {
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 28,
                           fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF0F172A),
                         ),
                       ),
                     ],
@@ -546,9 +478,13 @@ class _ShiftStartScreenState extends ConsumerState<ShiftStartScreen> {
                     color: Color(0xFFBA0013),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.notifications_active_rounded, color: Colors.white)
-                      .animate(onPlay: (c) => c.repeat())
-                      .shimmer(duration: 1200.ms),
+                  child:
+                      const Icon(
+                            Icons.notifications_active_rounded,
+                            color: Colors.white,
+                          )
+                          .animate(onPlay: (c) => c.repeat())
+                          .shimmer(duration: 1200.ms),
                 ),
               ],
             ),
@@ -603,7 +539,11 @@ class _ShiftStartScreenState extends ConsumerState<ShiftStartScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Icon(Icons.wb_cloudy_outlined, size: 32, color: isDark ? Colors.white54 : const Color(0xFF64748B)),
+              Icon(
+                Icons.wb_cloudy_outlined,
+                size: 32,
+                color: isDark ? Colors.white54 : const Color(0xFF64748B),
+              ),
               const SizedBox(height: 4),
               Text(
                 '72°F',
