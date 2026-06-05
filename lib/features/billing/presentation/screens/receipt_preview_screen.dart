@@ -123,7 +123,7 @@ class _ReceiptPreviewContent extends ConsumerWidget {
               child: Column(
                 children: [
                   Text(
-                    'ORDERLLI BISTRO',
+                    'ORDERLYY BISTRO',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w900,
                       color: Colors.black,
@@ -234,7 +234,7 @@ class _ReceiptPreviewContent extends ConsumerWidget {
               final messenger = ScaffoldMessenger.of(context);
               await HapticFeedback.lightImpact();
               final printer = LocalPrinterService();
-              final rawBytes = 'ORDERLLI BISTRO\nTable: ${order.tableId}\nTotal: \$${total.toStringAsFixed(2)}\n';
+              final rawBytes = 'ORDERLYY BISTRO\nTable: ${order.tableId}\nTotal: \$${total.toStringAsFixed(2)}\n';
               try {
                 await printer.printReceiptDraft('192.168.1.100', rawBytes);
                 messenger.showSnackBar(
