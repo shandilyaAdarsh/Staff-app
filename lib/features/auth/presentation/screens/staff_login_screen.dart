@@ -4,12 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:dio/dio.dart';
+
 import '../../../../core/theme/app_colors.dart';
 import '../state/auth_notifier.dart';
 import '../state/auth_state.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
-import '../../../../core/network/network_providers.dart';
+
 
 class StaffLoginScreen extends ConsumerStatefulWidget {
   const StaffLoginScreen({super.key});
@@ -61,7 +60,7 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
         final staffList = notifier.mockStaff;
         
         // Let's see if the employeeId exists
-        var staff;
+        StaffMember? staff;
         try {
           staff = staffList.firstWhere((s) => s.employeeId == employeeId || s.id == employeeId);
         } catch (_) {
@@ -72,12 +71,12 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
           setState(() {
             _isEnteringPin = true;
             _matchedStaff = {
-              'name': staff.name,
-              'role': staff.role.name,
+              'name': staff?.name ?? 'Staff',
+              'role': staff?.role?.name ?? 'waiter',
             };
             _isLoading = false;
           });
-          Future.microtask(() => _pinFocus.requestFocus());
+          await Future.microtask(() => _pinFocus.requestFocus());
         } else {
           setState(() {
             _isLoading = false;
@@ -259,7 +258,7 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
   }
 
   Widget _buildRightSection(bool isDark, AuthState authState) {
-    final theme = Theme.of(context);
+    // theme available via parent build method
     final displayedError = _localError ?? authState.errorMessage;
 
     return Padding(

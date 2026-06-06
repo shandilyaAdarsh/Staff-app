@@ -226,13 +226,14 @@ class OperationalRuntimeBridge {
         await _store.applyValidatedEvent(event);
         break;
 
-<<<<<<< Updated upstream
       // ── Order Alert Domain ────────────────────────────────────────────────
       case RuntimeEventType.orderAssigned:
       case RuntimeEventType.orderReassigned:
       case RuntimeEventType.orderReadyForPickup:
         await _handleOrderAlertEvent(event);
-=======
+        break;
+
+      // ── Operational Alert Domain ──────────────────────────────────────────
       case RuntimeEventType.operationalAlertCreated:
       case RuntimeEventType.operationalAlertUpdated:
         await _ref.read(operationalAlertsProvider.notifier).applyRemoteAlertUpdate(event.payload);
@@ -243,7 +244,6 @@ class OperationalRuntimeBridge {
         if (alertId != null) {
           await _ref.read(operationalAlertsProvider.notifier).applyRemoteAlertDismissed(alertId);
         }
->>>>>>> Stashed changes
         break;
 
       case RuntimeEventType.unknown:

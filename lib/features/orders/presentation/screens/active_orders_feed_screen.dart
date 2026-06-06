@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/order.dart';
-import '../../domain/entities/order.dart';
 import '../state/orders_projection_provider.dart';
 
 enum OrderSlaStatus { safe, stage1, stage2, stage3 }
