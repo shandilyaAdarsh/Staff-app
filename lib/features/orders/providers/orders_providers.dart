@@ -10,6 +10,7 @@ import '../../menu/presentation/state/menu_providers.dart';
 
 import '../../../../core/network/network_providers.dart';
 import '../data/datasources/remote/orders_remote_datasource.dart';
+import '../presentation/state/orders_projection_provider.dart';
 
 final ordersLocalDatasourceProvider = Provider<OrdersLocalDatasource>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
@@ -37,3 +38,8 @@ final menuProductsProvider = Provider<List<MenuProduct>>((ref) {
   return ref.watch(publicMenuProductsProvider);
 });
 
+final activeOrdersProvider = FutureProvider.autoDispose<void>((ref) async {
+  final repo = ref.watch(ordersRepositoryProvider);
+  final orders = await repo.fetchActiveOrders();
+  ref.read(ordersProjectionProvider.notifier).updateProjection(orders);
+});

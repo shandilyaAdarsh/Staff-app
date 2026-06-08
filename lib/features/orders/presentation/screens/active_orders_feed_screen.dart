@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/order.dart';
 import '../state/orders_projection_provider.dart';
+import '../../providers/orders_realtime_provider.dart';
 
 enum OrderSlaStatus { safe, stage1, stage2, stage3 }
 
@@ -122,6 +123,7 @@ class _ActiveOrdersFeedScreenState extends ConsumerState<ActiveOrdersFeedScreen>
       ),
       body: Builder(
         builder: (context) {
+          ref.watch(ordersRealtimeProvider);
           final ordersList = ref.watch(ordersProjectionProvider);
 
           var orders = ordersList.where((o) => o.status != OrderStatus.completed && o.status != OrderStatus.cancelled).toList();

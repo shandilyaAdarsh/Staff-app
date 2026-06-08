@@ -23,14 +23,19 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   final _lastNameController = TextEditingController();
   final _dobController = TextEditingController();
   String _selectedGender = 'Prefer Not To Say';
-  
+
   // Step 2 Controllers
   final _mobileController = TextEditingController();
   final _addressController = TextEditingController();
   final _emergencyNameController = TextEditingController();
   final _emergencyNumberController = TextEditingController();
 
-  final List<String> _genderOptions = ['Male', 'Female', 'Other', 'Prefer Not To Say'];
+  final List<String> _genderOptions = [
+    'Male',
+    'Female',
+    'Other',
+    'Prefer Not To Say',
+  ];
 
   @override
   void initState() {
@@ -38,7 +43,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     final staff = ref.read(authNotifierProvider).loggedInStaff;
     final initialStep = (staff?.profileSetupStep ?? 1) - 1;
     _currentStep = initialStep < 0 ? 0 : (initialStep > 1 ? 1 : initialStep);
-    
+
     _pageController = PageController(initialPage: _currentStep);
 
     if (staff != null) {
@@ -75,19 +80,19 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     });
 
     final authNotifier = ref.read(authNotifierProvider.notifier);
-    
-    final data = <String, dynamic>{
-      'profile_setup_step': step + 1,
-    };
 
-    if (step == 1) { // Saving step 1 (0-indexed) -> moving to step 2
+    final data = <String, dynamic>{'profile_setup_step': step + 1};
+
+    if (step == 1) {
+      // Saving step 1 (0-indexed) -> moving to step 2
       data['first_name'] = _firstNameController.text.trim();
       data['last_name'] = _lastNameController.text.trim();
       data['gender'] = _selectedGender;
       if (_dobController.text.isNotEmpty) {
         data['date_of_birth'] = _dobController.text.trim();
       }
-    } else if (step == 2) { // Completing step 2
+    } else if (step == 2) {
+      // Completing step 2
       data['mobile_number'] = _mobileController.text.trim();
       data['address'] = _addressController.text.trim();
       data['emergency_contact_name'] = _emergencyNameController.text.trim();
@@ -107,7 +112,10 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
       if (success) {
         if (step == 1) {
-          _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+          _pageController.nextPage(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
           setState(() => _currentStep = 1);
         } else {
           // Go router will automatically redirect to dashboard since profile_completed is now true!
@@ -118,8 +126,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   }
 
   void _validateAndProceedStep1() {
-    if (_firstNameController.text.trim().isEmpty || 
-        _lastNameController.text.trim().isEmpty || 
+    if (_firstNameController.text.trim().isEmpty ||
+        _lastNameController.text.trim().isEmpty ||
         _dobController.text.trim().isEmpty) {
       setState(() => _errorMessage = 'Please fill all required fields (*)');
       return;
@@ -128,9 +136,9 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   }
 
   void _validateAndCompleteStep2() {
-    if (_mobileController.text.trim().isEmpty || 
-        _addressController.text.trim().isEmpty || 
-        _emergencyNameController.text.trim().isEmpty || 
+    if (_mobileController.text.trim().isEmpty ||
+        _addressController.text.trim().isEmpty ||
+        _emergencyNameController.text.trim().isEmpty ||
         _emergencyNumberController.text.trim().isEmpty) {
       setState(() => _errorMessage = 'Please fill all required fields (*)');
       return;
@@ -141,7 +149,9 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now().subtract(const Duration(days: 365 * 20)), // Default age ~20
+      initialDate: DateTime.now().subtract(
+        const Duration(days: 365 * 20),
+      ), // Default age ~20
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
       builder: (context, child) {
@@ -153,7 +163,9 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
               surface: AppColors.darkSurface,
               onSurface: AppColors.darkTextPrimary,
             ),
-            dialogBackgroundColor: AppColors.darkSurface,
+            dialogTheme: DialogThemeData(
+              backgroundColor: AppColors.darkSurface,
+            ),
           ),
           child: child!,
         );
@@ -169,11 +181,19 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
-    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final bgColor = isDark
+        ? AppColors.darkBackground
+        : AppColors.lightBackground;
+    final surfaceColor = isDark
+        ? AppColors.darkSurface
+        : AppColors.lightSurface;
     final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -184,13 +204,13 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
           decoration: BoxDecoration(
             color: surfaceColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: borderColor.withOpacity(0.2)),
+            border: Border.all(color: borderColor.withValues(alpha: 0.2)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.5),
+                color: Colors.black.withValues(alpha: 0.5),
                 blurRadius: 30,
                 offset: const Offset(0, 10),
-              )
+              ),
             ],
           ),
           child: Column(
@@ -208,29 +228,32 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
               ),
               SizedBox(height: AppSpacing.sm(context)),
               Text(
-                _currentStep == 0 
-                  ? 'Step 1: Let\'s set up your personal information.' 
-                  : 'Step 2: Contact & Employment Information.',
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  color: textSecondary,
-                ),
+                _currentStep == 0
+                    ? 'Step 1: Let\'s set up your personal information.'
+                    : 'Step 2: Contact & Employment Information.',
+                style: GoogleFonts.inter(fontSize: 16, color: textSecondary),
                 textAlign: TextAlign.center,
               ),
               SizedBox(height: AppSpacing.xl(context)),
-              
+
               if (_errorMessage != null)
                 Container(
                   padding: EdgeInsets.all(AppSpacing.md(context)),
                   margin: EdgeInsets.only(bottom: AppSpacing.lg(context)),
                   decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.1),
+                    color: AppColors.error.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.error.withOpacity(0.5)),
+                    border: Border.all(
+                      color: AppColors.error.withValues(alpha: 0.5),
+                    ),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.error_outline, color: AppColors.error, size: 20),
+                      const Icon(
+                        Icons.error_outline,
+                        color: AppColors.error,
+                        size: 20,
+                      ),
                       SizedBox(width: AppSpacing.sm(context)),
                       Expanded(
                         child: Text(
@@ -247,22 +270,42 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                   controller: _pageController,
                   physics: const NeverScrollableScrollPhysics(),
                   children: [
-                    _buildStep1(context, isDark, textPrimary, textSecondary, borderColor),
-                    _buildStep2(context, isDark, textPrimary, textSecondary, borderColor),
+                    _buildStep1(
+                      context,
+                      isDark,
+                      textPrimary,
+                      textSecondary,
+                      borderColor,
+                    ),
+                    _buildStep2(
+                      context,
+                      isDark,
+                      textPrimary,
+                      textSecondary,
+                      borderColor,
+                    ),
                   ],
                 ),
               ),
 
               SizedBox(height: AppSpacing.xl(context)),
-              
+
               _isLoading
-                  ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
+                    )
                   : ElevatedButton(
-                      onPressed: _currentStep == 0 ? _validateAndProceedStep1 : _validateAndCompleteStep2,
+                      onPressed: _currentStep == 0
+                          ? _validateAndProceedStep1
+                          : _validateAndCompleteStep2,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: AppSpacing.lg(context)),
+                        padding: EdgeInsets.symmetric(
+                          vertical: AppSpacing.lg(context),
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -282,7 +325,17 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     );
   }
 
-  Widget _buildTextField(BuildContext context, String label, TextEditingController controller, Color textPrimary, Color textSecondary, Color borderColor, {bool required = false, bool readOnly = false, VoidCallback? onTap}) {
+  Widget _buildTextField(
+    BuildContext context,
+    String label,
+    TextEditingController controller,
+    Color textPrimary,
+    Color textSecondary,
+    Color borderColor, {
+    bool required = false,
+    bool readOnly = false,
+    VoidCallback? onTap,
+  }) {
     return Padding(
       padding: EdgeInsets.only(bottom: AppSpacing.lg(context)),
       child: Column(
@@ -298,7 +351,10 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
               ),
               children: [
                 if (required)
-                  TextSpan(text: ' *', style: GoogleFonts.inter(color: AppColors.error)),
+                  TextSpan(
+                    text: ' *',
+                    style: GoogleFonts.inter(color: AppColors.error),
+                  ),
               ],
             ),
           ),
@@ -310,20 +366,29 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
             style: GoogleFonts.inter(color: textPrimary),
             decoration: InputDecoration(
               filled: true,
-              fillColor: Theme.of(context).brightness == Brightness.dark ? AppColors.darkBackground : AppColors.lightBackground,
+              fillColor: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.darkBackground
+                  : AppColors.lightBackground,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: borderColor.withOpacity(0.2)),
+                borderSide: BorderSide(
+                  color: borderColor.withValues(alpha: 0.2),
+                ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: borderColor.withOpacity(0.2)),
+                borderSide: BorderSide(
+                  color: borderColor.withValues(alpha: 0.2),
+                ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: const BorderSide(color: AppColors.primary),
               ),
-              contentPadding: EdgeInsets.symmetric(horizontal: AppSpacing.md(context), vertical: AppSpacing.sm(context)),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: AppSpacing.md(context),
+                vertical: AppSpacing.sm(context),
+              ),
             ),
           ),
         ],
@@ -331,23 +396,63 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     );
   }
 
-  Widget _buildStep1(BuildContext context, bool isDark, Color textPrimary, Color textSecondary, Color borderColor) {
-    final bgColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
-    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
-    
+  Widget _buildStep1(
+    BuildContext context,
+    bool isDark,
+    Color textPrimary,
+    Color textSecondary,
+    Color borderColor,
+  ) {
+    final bgColor = isDark
+        ? AppColors.darkBackground
+        : AppColors.lightBackground;
+    final surfaceColor = isDark
+        ? AppColors.darkSurface
+        : AppColors.lightSurface;
+
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(child: _buildTextField(context, 'First Name', _firstNameController, textPrimary, textSecondary, borderColor, required: true)),
+              Expanded(
+                child: _buildTextField(
+                  context,
+                  'First Name',
+                  _firstNameController,
+                  textPrimary,
+                  textSecondary,
+                  borderColor,
+                  required: true,
+                ),
+              ),
               SizedBox(width: AppSpacing.md(context)),
-              Expanded(child: _buildTextField(context, 'Last Name', _lastNameController, textPrimary, textSecondary, borderColor, required: true)),
+              Expanded(
+                child: _buildTextField(
+                  context,
+                  'Last Name',
+                  _lastNameController,
+                  textPrimary,
+                  textSecondary,
+                  borderColor,
+                  required: true,
+                ),
+              ),
             ],
           ),
-          _buildTextField(context, 'Date of Birth (YYYY-MM-DD)', _dobController, textPrimary, textSecondary, borderColor, required: true, readOnly: true, onTap: () => _selectDate(context)),
-          
+          _buildTextField(
+            context,
+            'Date of Birth (YYYY-MM-DD)',
+            _dobController,
+            textPrimary,
+            textSecondary,
+            borderColor,
+            required: true,
+            readOnly: true,
+            onTap: () => _selectDate(context),
+          ),
+
           Text(
             'Gender *',
             style: GoogleFonts.inter(
@@ -362,7 +467,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
             decoration: BoxDecoration(
               color: bgColor,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: borderColor.withOpacity(0.2)),
+              border: Border.all(color: borderColor.withValues(alpha: 0.2)),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
@@ -389,24 +494,68 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     );
   }
 
-  Widget _buildStep2(BuildContext context, bool isDark, Color textPrimary, Color textSecondary, Color borderColor) {
+  Widget _buildStep2(
+    BuildContext context,
+    bool isDark,
+    Color textPrimary,
+    Color textSecondary,
+    Color borderColor,
+  ) {
     final staff = ref.read(authNotifierProvider).loggedInStaff;
-    final bgColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
-    
+    final bgColor = isDark
+        ? AppColors.darkBackground
+        : AppColors.lightBackground;
+
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildTextField(context, 'Mobile Number', _mobileController, textPrimary, textSecondary, borderColor, required: true),
-          _buildTextField(context, 'Address', _addressController, textPrimary, textSecondary, borderColor, required: true),
+          _buildTextField(
+            context,
+            'Mobile Number',
+            _mobileController,
+            textPrimary,
+            textSecondary,
+            borderColor,
+            required: true,
+          ),
+          _buildTextField(
+            context,
+            'Address',
+            _addressController,
+            textPrimary,
+            textSecondary,
+            borderColor,
+            required: true,
+          ),
           Row(
             children: [
-              Expanded(child: _buildTextField(context, 'Emergency Contact Name', _emergencyNameController, textPrimary, textSecondary, borderColor, required: true)),
+              Expanded(
+                child: _buildTextField(
+                  context,
+                  'Emergency Contact Name',
+                  _emergencyNameController,
+                  textPrimary,
+                  textSecondary,
+                  borderColor,
+                  required: true,
+                ),
+              ),
               SizedBox(width: AppSpacing.md(context)),
-              Expanded(child: _buildTextField(context, 'Emergency Contact Number', _emergencyNumberController, textPrimary, textSecondary, borderColor, required: true)),
+              Expanded(
+                child: _buildTextField(
+                  context,
+                  'Emergency Contact Number',
+                  _emergencyNumberController,
+                  textPrimary,
+                  textSecondary,
+                  borderColor,
+                  required: true,
+                ),
+              ),
             ],
           ),
-          
+
           SizedBox(height: AppSpacing.md(context)),
           Text(
             'Employment Information (Auto-filled)',
@@ -417,32 +566,57 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
             ),
           ),
           SizedBox(height: AppSpacing.md(context)),
-          
+
           Container(
             padding: EdgeInsets.all(AppSpacing.md(context)),
             decoration: BoxDecoration(
-              color: bgColor.withOpacity(0.5),
+              color: bgColor.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: borderColor.withOpacity(0.1)),
+              border: Border.all(color: borderColor.withValues(alpha: 0.1)),
             ),
             child: Column(
               children: [
-                _buildInfoRow('Employee ID', staff?.employeeId ?? 'N/A', textPrimary, textSecondary),
+                _buildInfoRow(
+                  'Employee ID',
+                  staff?.employeeId ?? 'N/A',
+                  textPrimary,
+                  textSecondary,
+                ),
                 SizedBox(height: AppSpacing.sm(context)),
-                _buildInfoRow('Role', staff?.role.name.toUpperCase() ?? 'N/A', textPrimary, textSecondary),
+                _buildInfoRow(
+                  'Role',
+                  staff?.role.name.toUpperCase() ?? 'N/A',
+                  textPrimary,
+                  textSecondary,
+                ),
                 SizedBox(height: AppSpacing.sm(context)),
-                _buildInfoRow('Branch', staff?.branch ?? 'Current Branch', textPrimary, textSecondary),
+                _buildInfoRow(
+                  'Branch',
+                  staff?.branch ?? 'Current Branch',
+                  textPrimary,
+                  textSecondary,
+                ),
                 SizedBox(height: AppSpacing.sm(context)),
-                _buildInfoRow('Department', staff?.department ?? 'General', textPrimary, textSecondary),
+                _buildInfoRow(
+                  'Department',
+                  staff?.department ?? 'General',
+                  textPrimary,
+                  textSecondary,
+                ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value, Color textPrimary, Color textSecondary) {
+  Widget _buildInfoRow(
+    String label,
+    String value,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -452,7 +626,11 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
         ),
         Text(
           value,
-          style: GoogleFonts.inter(color: textPrimary, fontWeight: FontWeight.bold, fontSize: 14),
+          style: GoogleFonts.inter(
+            color: textPrimary,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
         ),
       ],
     );

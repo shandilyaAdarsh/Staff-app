@@ -1,13 +1,13 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import '../entities/organization.dart';
-import '../entities/branch.dart';
+
 import '../entities/staff_member.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/network/secure_storage.dart';
 
 class AuthRepository {
+  // ignore: unused_field
   final SupabaseClient _supabase;
   final DioClient _dio;
 

@@ -11,6 +11,9 @@ import '../../../kitchen/presentation/state/kitchen_runtime_providers.dart';
 import '../../../tables/domain/entities/restaurant_table.dart';
 import '../../../auth/domain/entities/branch.dart';
 import '../../../realtime/presentation/widgets/diagnostics/degraded_mode_coordinator_widget.dart';
+import '../../../orders/providers/orders_realtime_provider.dart';
+import '../../../orders/presentation/state/orders_projection_provider.dart';
+import '../../../orders/domain/entities/order.dart';
 
 class OperationalDashboardScreen extends ConsumerStatefulWidget {
   const OperationalDashboardScreen({super.key});
@@ -30,6 +33,9 @@ class _OperationalDashboardScreenState
 
   @override
   Widget build(BuildContext context) {
+    // Keep realtime subscription alive while dashboard is active
+    ref.watch(ordersRealtimeProvider);
+
     final authState = ref.watch(authNotifierProvider);
     final tablesAsync = ref.watch(tableGridNotifierProvider);
     final theme = Theme.of(context);
@@ -64,12 +70,10 @@ class _OperationalDashboardScreenState
       alertTables = alertList.length;
     });
 
-    final preparingTickets = ref.watch(preparingTicketsProvider);
-    final readyTickets = ref.watch(readyTicketsProvider);
-    final int preparingCount = preparingTickets.length;
-    final int readyCount = readyTickets.length;
-    // We don't have completedOrdersCount modeled in the projection yet, so we mock it.
-    const int completedOrdersCount = 0;
+    final orders = ref.watch(ordersProjectionProvider);
+    final int preparingCount = orders.where((o) => o.status == OrderStatus.preparing).length;
+    final int readyCount = orders.where((o) => o.status == OrderStatus.ready).length;
+    final int completedOrdersCount = orders.where((o) => o.status == OrderStatus.completed).length;
     // Section load calculations
     Map<String, Map<String, dynamic>> sectionStats = {
       'Patio': {'total': 0, 'occupied': 0, 'range': 'T1-T3'},

@@ -6,7 +6,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../network/dio_client.dart';
 import '../network/secure_storage.dart';
@@ -46,17 +45,11 @@ class HydrationResult {
   });
 
   factory HydrationResult.success(HydratedSession session) {
-    return HydrationResult(
-      success: true,
-      session: session,
-    );
+    return HydrationResult(success: true, session: session);
   }
 
   factory HydrationResult.failure(String error) {
-    return HydrationResult(
-      success: false,
-      errorMessage: error,
-    );
+    return HydrationResult(success: false, errorMessage: error);
   }
 }
 
@@ -80,7 +73,9 @@ class RuntimeSessionHydrator {
       // Step 1: Exchange platform session for a short-lived runtime token
       final exchangeSuccess = await _exchangeRuntimeToken(branchId);
       if (!exchangeSuccess) {
-        return HydrationResult.failure('Failed to exchange platform token for runtime session');
+        return HydrationResult.failure(
+          'Failed to exchange platform token for runtime session',
+        );
       }
 
       // Step 2: Fetch authoritative auth context
@@ -90,13 +85,19 @@ class RuntimeSessionHydrator {
       }
 
       // Step 3: Fetch RBAC context
-      final rbacContext = await _fetchRBACContext(staffId, branchId, authContext);
+      final rbacContext = await _fetchRBACContext(
+        staffId,
+        branchId,
+        authContext,
+      );
       if (rbacContext == null) {
         return HydrationResult.failure('Failed to fetch RBAC context');
       }
 
       // Step 4: Fetch branch context
-      final tenantId = authContext['user']?['tenantId'] as String? ?? '11111111-1111-1111-1111-111111111111';
+      final tenantId =
+          authContext['user']?['tenantId'] as String? ??
+          '11111111-1111-1111-1111-111111111111';
       final branchContext = await _fetchBranchContext(tenantId, branchId);
       if (branchContext == null) {
         return HydrationResult.failure('Failed to fetch branch context');
@@ -129,7 +130,9 @@ class RuntimeSessionHydrator {
 
       debugPrint('[RuntimeSessionHydrator] Session hydrated successfully');
       debugPrint('[RuntimeSessionHydrator] Epoch: ${epoch.epochId}');
-      debugPrint('[RuntimeSessionHydrator] Replay events: ${replayEvents.length}');
+      debugPrint(
+        '[RuntimeSessionHydrator] Replay events: ${replayEvents.length}',
+      );
 
       return HydrationResult.success(session);
     } catch (e, stackTrace) {
@@ -144,7 +147,9 @@ class RuntimeSessionHydrator {
     const secureStorage = SecureLocalStorage();
     final supabaseToken = await secureStorage.read('access_token');
     if (supabaseToken == null) {
-      debugPrint('[RuntimeSessionHydrator] No active platform token available for exchange.');
+      debugPrint(
+        '[RuntimeSessionHydrator] No active platform token available for exchange.',
+      );
       return false;
     }
 
@@ -157,9 +162,7 @@ class RuntimeSessionHydrator {
     try {
       final response = await _dioClient.post(
         '/api/v1/auth/runtime/exchange',
-        data: {
-          'branch_id': branchId,
-        },
+        data: {'branch_id': branchId},
         options: Options(
           headers: {
             'Authorization': 'Bearer $supabaseToken',
@@ -172,18 +175,24 @@ class RuntimeSessionHydrator {
         final data = response.data['data'];
         final runtimeToken = data['runtime_token'] as String;
         await secureStorage.write('runtime_token', runtimeToken);
-        debugPrint('[RuntimeSessionHydrator] Runtime token exchanged successfully');
+        debugPrint(
+          '[RuntimeSessionHydrator] Runtime token exchanged successfully',
+        );
         return true;
       }
     } catch (e) {
-      debugPrint('[RuntimeSessionHydrator] Failed to exchange runtime token: $e');
+      debugPrint(
+        '[RuntimeSessionHydrator] Failed to exchange runtime token: $e',
+      );
     }
     return false;
   }
 
   /// Fetch authoritative authentication context from backend.
   Future<Map<String, dynamic>?> _fetchAuthContext(String staffId) async {
-    debugPrint('[RuntimeSessionHydrator] Fetching auth context for staff: $staffId');
+    debugPrint(
+      '[RuntimeSessionHydrator] Fetching auth context for staff: $staffId',
+    );
 
     const secureStorage = SecureLocalStorage();
     final token = await secureStorage.read('runtime_token');
@@ -215,7 +224,9 @@ class RuntimeSessionHydrator {
     String branchId,
     Map<String, dynamic> authContext,
   ) async {
-    debugPrint('[RuntimeSessionHydrator] Resolving RBAC context for staff: $staffId, branch: $branchId');
+    debugPrint(
+      '[RuntimeSessionHydrator] Resolving RBAC context for staff: $staffId, branch: $branchId',
+    );
 
     final user = authContext['user'];
     if (user == null) return null;
@@ -229,8 +240,13 @@ class RuntimeSessionHydrator {
   }
 
   /// Fetch branch context from backend.
-  Future<Map<String, dynamic>?> _fetchBranchContext(String tenantId, String branchId) async {
-    debugPrint('[RuntimeSessionHydrator] Fetching branch context for: $branchId under tenant: $tenantId');
+  Future<Map<String, dynamic>?> _fetchBranchContext(
+    String tenantId,
+    String branchId,
+  ) async {
+    debugPrint(
+      '[RuntimeSessionHydrator] Fetching branch context for: $branchId under tenant: $tenantId',
+    );
 
     const secureStorage = SecureLocalStorage();
     final token = await secureStorage.read('runtime_token');
@@ -238,11 +254,7 @@ class RuntimeSessionHydrator {
     try {
       final response = await _dioClient.get(
         '/api/v1/tenants/$tenantId/branches',
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $token',
-          },
-        ),
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
 
       if (response.statusCode == 200 && response.data['success'] == true) {
@@ -279,7 +291,9 @@ class RuntimeSessionHydrator {
       return [];
     }
 
-    debugPrint('[RuntimeSessionHydrator] Fetching replay events from sequence: $lastKnownSequence');
+    debugPrint(
+      '[RuntimeSessionHydrator] Fetching replay events from sequence: $lastKnownSequence',
+    );
 
     const secureStorage = SecureLocalStorage();
     final token = await secureStorage.read('runtime_token');
@@ -287,15 +301,8 @@ class RuntimeSessionHydrator {
     try {
       final response = await _dioClient.get(
         '/api/v1/runtime/events/replay',
-        queryParameters: {
-          'branch_id': branchId,
-          'from_seq': lastKnownSequence,
-        },
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $token',
-          },
-        ),
+        queryParameters: {'branch_id': branchId, 'from_seq': lastKnownSequence},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
 
       if (response.statusCode == 200 && response.data['success'] == true) {

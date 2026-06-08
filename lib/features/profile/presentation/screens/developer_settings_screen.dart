@@ -12,11 +12,17 @@ class DeveloperSettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
+    final bgColor = isDark
+        ? AppColors.darkBackground
+        : AppColors.lightBackground;
     final surfaceColor = isDark ? AppColors.darkSurface : Colors.white;
     final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
 
     final authState = ref.watch(authNotifierProvider);
     final staff = authState.loggedInStaff;
@@ -77,7 +83,9 @@ class DeveloperSettingsScreen extends ConsumerWidget {
                           const SizedBox(height: 4),
                           Text(
                             'Enable advanced runtime observability',
-                            style: AppTextStyles.caption.copyWith(color: textSecondary),
+                            style: AppTextStyles.caption.copyWith(
+                              color: textSecondary,
+                            ),
                           ),
                         ],
                       ),
@@ -90,8 +98,12 @@ class DeveloperSettingsScreen extends ConsumerWidget {
                             // Call provider to update the staff record in DB.
                             // Assuming an update function exists, we mock it for now.
                             // In a real implementation this sends an API request/Supabase update.
-                            final updatedStaff = staff.copyWith(developerModeEnabled: value);
-                            ref.read(authNotifierProvider.notifier).updateStaffSession(updatedStaff);
+                            final updatedStaff = staff.copyWith(
+                              developerModeEnabled: value,
+                            );
+                            ref
+                                .read(authNotifierProvider.notifier)
+                                .updateStaffSession(updatedStaff);
                           }
                         },
                       ),
@@ -103,9 +115,16 @@ class DeveloperSettingsScreen extends ConsumerWidget {
                   ListTile(
                     title: Text(
                       'Open Developer Dashboard',
-                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold),
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    trailing: Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.primary),
+                    trailing: const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 16,
+                      color: AppColors.primary,
+                    ),
                     onTap: () {
                       context.push('/developer');
                     },

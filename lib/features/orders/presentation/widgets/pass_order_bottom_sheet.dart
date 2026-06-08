@@ -38,7 +38,8 @@ class PassOrderBottomSheet extends ConsumerStatefulWidget {
   const PassOrderBottomSheet({super.key, required this.alert});
 
   @override
-  ConsumerState<PassOrderBottomSheet> createState() => _PassOrderBottomSheetState();
+  ConsumerState<PassOrderBottomSheet> createState() =>
+      _PassOrderBottomSheetState();
 }
 
 class _PassOrderBottomSheetState extends ConsumerState<PassOrderBottomSheet> {
@@ -74,16 +75,21 @@ class _PassOrderBottomSheetState extends ConsumerState<PassOrderBottomSheet> {
       );
 
       if (response.statusCode == 200) {
-        final list = (response.data['data']['staff'] as List<dynamic>? ?? [])
-            .map((s) => _AvailableStaffMember(
-                  id: s['id'] as String,
-                  name: s['name'] as String,
-                  role: (s['role'] as String).toLowerCase(),
-                  activeOrderCount: (s['activeOrderCount'] as int?) ?? 0,
-                ))
-            .where((s) => s.id != currentUserId) // exclude self
-            .toList()
-          ..sort((a, b) => a.activeOrderCount.compareTo(b.activeOrderCount));
+        final list =
+            (response.data['data']['staff'] as List<dynamic>? ?? [])
+                .map(
+                  (s) => _AvailableStaffMember(
+                    id: s['id'] as String,
+                    name: s['name'] as String,
+                    role: (s['role'] as String).toLowerCase(),
+                    activeOrderCount: (s['activeOrderCount'] as int?) ?? 0,
+                  ),
+                )
+                .where((s) => s.id != currentUserId) // exclude self
+                .toList()
+              ..sort(
+                (a, b) => a.activeOrderCount.compareTo(b.activeOrderCount),
+              );
 
         setState(() {
           _staffList = list;
@@ -104,7 +110,9 @@ class _PassOrderBottomSheetState extends ConsumerState<PassOrderBottomSheet> {
     final authState = ref.read(authNotifierProvider);
     final branchId = authState.selectedBranch?.id ?? '';
 
-    final success = await ref.read(orderAlertNotifierProvider.notifier).passAlert(
+    final success = await ref
+        .read(orderAlertNotifierProvider.notifier)
+        .passAlert(
           orderId: widget.alert.orderId,
           toStaffId: staff.id,
           branchId: branchId,
@@ -199,7 +207,10 @@ class _PassOrderBottomSheetState extends ConsumerState<PassOrderBottomSheet> {
                   const SizedBox(height: 12),
                   Text(
                     'No available staff found.',
-                    style: GoogleFonts.inter(color: Colors.white38, fontSize: 14),
+                    style: GoogleFonts.inter(
+                      color: Colors.white38,
+                      fontSize: 14,
+                    ),
                   ),
                 ],
               ),
@@ -228,13 +239,13 @@ class _PassOrderBottomSheetState extends ConsumerState<PassOrderBottomSheet> {
     final orderCountColor = staff.activeOrderCount == 0
         ? const Color(0xFF00C851)
         : staff.activeOrderCount <= 2
-            ? const Color(0xFFFFD700)
-            : Colors.orange;
+        ? const Color(0xFFFFD700)
+        : Colors.orange;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.white12),
       ),
@@ -242,7 +253,7 @@ class _PassOrderBottomSheetState extends ConsumerState<PassOrderBottomSheet> {
         onTap: isPassing ? null : () => _passTo(staff),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         leading: CircleAvatar(
-          backgroundColor: const Color(0xFF4ECDC4).withOpacity(0.15),
+          backgroundColor: const Color(0xFF4ECDC4).withValues(alpha: 0.15),
           child: Text(
             staff.name.isNotEmpty ? staff.name[0].toUpperCase() : '?',
             style: GoogleFonts.inter(
@@ -277,9 +288,12 @@ class _PassOrderBottomSheetState extends ConsumerState<PassOrderBottomSheet> {
                 ),
               )
             : Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
-                  color: orderCountColor.withOpacity(0.15),
+                  color: orderCountColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(

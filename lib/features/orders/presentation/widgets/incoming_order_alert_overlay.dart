@@ -99,7 +99,9 @@ class _OrderAlertListenerState extends ConsumerState<OrderAlertListener> {
       builder: (context) => OrderReadyPopupOverlay(
         alert: alert,
         onAcknowledge: () {
-          ref.read(orderAlertNotifierProvider.notifier).dismissReadyAlert(alert.orderId);
+          ref
+              .read(orderAlertNotifierProvider.notifier)
+              .dismissReadyAlert(alert.orderId);
           _dismissReadyOverlay();
         },
       ),
@@ -171,10 +173,13 @@ class _IncomingOrderAlertOverlayState
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 1.5),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _entranceController, curve: Curves.easeOutBack));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 1.5), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _entranceController,
+            curve: Curves.easeOutBack,
+          ),
+        );
     _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _entranceController, curve: Curves.easeOut),
     );
@@ -191,7 +196,7 @@ class _IncomingOrderAlertOverlayState
     // Countdown ring controller
     _countdownController = AnimationController(
       vsync: this,
-      duration: Duration(seconds: _timeoutSeconds),
+      duration: const Duration(seconds: _timeoutSeconds),
     )..forward();
 
     // Start countdown
@@ -218,7 +223,9 @@ class _IncomingOrderAlertOverlayState
   }
 
   void _onExpired() {
-    ref.read(orderAlertNotifierProvider.notifier).expireAlert(widget.alert.orderId);
+    ref
+        .read(orderAlertNotifierProvider.notifier)
+        .expireAlert(widget.alert.orderId);
     widget.onExpired();
   }
 
@@ -255,9 +262,7 @@ class _IncomingOrderAlertOverlayState
           // Dark backdrop
           FadeTransition(
             opacity: _fadeAnimation,
-            child: Container(
-              color: Colors.black.withOpacity(0.75),
-            ),
+            child: Container(color: Colors.black.withValues(alpha: 0.75)),
           ),
 
           // Alert card
@@ -287,12 +292,16 @@ class _IncomingOrderAlertOverlayState
               color: const Color(0xFF1A1A2E),
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                color: const Color(0xFFFF6B35).withOpacity(_pulseAnimation.value),
+                color: const Color(
+                  0xFFFF6B35,
+                ).withValues(alpha: _pulseAnimation.value),
                 width: 2,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFFF6B35).withOpacity(0.3 * _pulseAnimation.value),
+                  color: const Color(
+                    0xFFFF6B35,
+                  ).withValues(alpha: 0.3 * _pulseAnimation.value),
                   blurRadius: 40,
                   spreadRadius: 5,
                 ),
@@ -343,13 +352,19 @@ class _IncomingOrderAlertOverlayState
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: const Color(0xFFFF6B35).withOpacity(0.15),
+              color: const Color(0xFFFF6B35).withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: const Color(0xFFFF6B35).withOpacity(_pulseAnimation.value),
+                color: const Color(
+                  0xFFFF6B35,
+                ).withValues(alpha: _pulseAnimation.value),
               ),
             ),
-            child: const Icon(Icons.notifications_active, color: Color(0xFFFF6B35), size: 24),
+            child: const Icon(
+              Icons.notifications_active,
+              color: Color(0xFFFF6B35),
+              size: 24,
+            ),
           ),
         ),
         const SizedBox(width: 12),
@@ -358,7 +373,9 @@ class _IncomingOrderAlertOverlayState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                widget.alert.isReassignment ? 'Order Passed to You' : 'New Order Received!',
+                widget.alert.isReassignment
+                    ? 'Order Passed to You'
+                    : 'New Order Received!',
                 style: GoogleFonts.inter(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -369,9 +386,11 @@ class _IncomingOrderAlertOverlayState
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFF6B35).withOpacity(0.15),
+                  color: const Color(0xFFFF6B35).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: const Color(0xFFFF6B35).withOpacity(0.4)),
+                  border: Border.all(
+                    color: const Color(0xFFFF6B35).withValues(alpha: 0.4),
+                  ),
                 ),
                 child: Text(
                   '⚡ HIGH PRIORITY',
@@ -397,12 +416,14 @@ class _IncomingOrderAlertOverlayState
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            const Color(0xFFFF6B35).withOpacity(0.2),
-            const Color(0xFFFF8C42).withOpacity(0.1),
+            const Color(0xFFFF6B35).withValues(alpha: 0.2),
+            const Color(0xFFFF8C42).withValues(alpha: 0.1),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFF6B35).withOpacity(0.3)),
+        border: Border.all(
+          color: const Color(0xFFFF6B35).withValues(alpha: 0.3),
+        ),
       ),
       child: Column(
         children: [
@@ -411,7 +432,7 @@ class _IncomingOrderAlertOverlayState
             style: GoogleFonts.inter(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: const Color(0xFFFF6B35).withOpacity(0.7),
+              color: const Color(0xFFFF6B35).withValues(alpha: 0.7),
               letterSpacing: 2,
             ),
           ),
@@ -439,12 +460,22 @@ class _IncomingOrderAlertOverlayState
   }
 
   Widget _buildOrderDetails() {
-    final timeStr = TimeOfDay.fromDateTime(widget.alert.orderTime).format(context);
+    final timeStr = TimeOfDay.fromDateTime(
+      widget.alert.orderTime,
+    ).format(context);
     return Row(
       children: [
-        _buildDetailChip(Icons.shopping_bag_outlined, '${widget.alert.itemCount} Items', const Color(0xFF4ECDC4)),
+        _buildDetailChip(
+          Icons.shopping_bag_outlined,
+          '${widget.alert.itemCount} Items',
+          const Color(0xFF4ECDC4),
+        ),
         const SizedBox(width: 8),
-        _buildDetailChip(Icons.currency_rupee, widget.alert.formattedTotal.replaceAll('₹', ''), const Color(0xFFFFD700)),
+        _buildDetailChip(
+          Icons.currency_rupee,
+          widget.alert.formattedTotal.replaceAll('₹', ''),
+          const Color(0xFFFFD700),
+        ),
         const SizedBox(width: 8),
         _buildDetailChip(Icons.access_time, timeStr, Colors.white54),
       ],
@@ -456,9 +487,9 @@ class _IncomingOrderAlertOverlayState
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(
           children: [
@@ -503,7 +534,11 @@ class _IncomingOrderAlertOverlayState
               AnimatedRotation(
                 turns: _itemsExpanded ? 0.5 : 0,
                 duration: const Duration(milliseconds: 200),
-                child: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF4ECDC4), size: 18),
+                child: const Icon(
+                  Icons.keyboard_arrow_down,
+                  color: Color(0xFF4ECDC4),
+                  size: 18,
+                ),
               ),
             ],
           ),
@@ -516,44 +551,51 @@ class _IncomingOrderAlertOverlayState
                   margin: const EdgeInsets.only(top: 10),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.04),
+                    color: Colors.white.withValues(alpha: 0.04),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.white12),
                   ),
                   child: Column(
                     children: widget.alert.items
-                        .map((item) => Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      item.name,
-                                      style: GoogleFonts.inter(
-                                        color: Colors.white70,
-                                        fontSize: 13,
-                                      ),
+                        .map(
+                          (item) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    item.name,
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white70,
+                                      fontSize: 13,
                                     ),
                                   ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF4ECDC4).withOpacity(0.15),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      '×${item.quantity}',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFF4ECDC4),
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFF4ECDC4,
+                                    ).withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '×${item.quantity}',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF4ECDC4),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
                                     ),
                                   ),
-                                ],
-                              ),
-                            ))
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
                         .toList(),
                   ),
                 )
@@ -578,7 +620,7 @@ class _IncomingOrderAlertOverlayState
             children: [
               AnimatedBuilder(
                 animation: _countdownController,
-                builder: (_, __) => CustomPaint(
+                builder: (_, _) => CustomPaint(
                   painter: _CountdownRingPainter(
                     progress: progress,
                     color: isUrgent ? Colors.red : const Color(0xFFFF6B35),
@@ -653,7 +695,7 @@ class _IncomingOrderAlertOverlayState
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF00C851).withOpacity(0.4),
+                    color: const Color(0xFF00C851).withValues(alpha: 0.4),
                     blurRadius: 15,
                     offset: const Offset(0, 4),
                   ),
@@ -673,7 +715,11 @@ class _IncomingOrderAlertOverlayState
                     : Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                          const Icon(
+                            Icons.check_circle,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             'Accept Order',

@@ -129,8 +129,9 @@ class WebSocketRealtimeTransport implements RealtimeTransport {
   /// Send ACK frame to confirm delivery of an event sequence.
   void _sendAck(int lastReceivedSequence) {
     try {
-      if (_status != RealtimeTransportStatus.connected || _channel == null)
+      if (_status != RealtimeTransportStatus.connected || _channel == null) {
         return;
+      }
       _channel!.sink.add(
         jsonEncode({
           'type': 'ACK',

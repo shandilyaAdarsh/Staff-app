@@ -8,7 +8,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../state/auth_notifier.dart';
 import '../state/auth_state.dart';
-
+import '../../domain/entities/staff_member.dart';
 
 class StaffLoginScreen extends ConsumerStatefulWidget {
   const StaffLoginScreen({super.key});
@@ -71,8 +71,8 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
           setState(() {
             _isEnteringPin = true;
             _matchedStaff = {
-              'name': staff?.name ?? 'Staff',
-              'role': staff?.role?.name ?? 'waiter',
+              'name': staff!.name,
+              'role': staff!.role.name,
             };
             _isLoading = false;
           });
