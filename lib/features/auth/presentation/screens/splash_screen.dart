@@ -127,7 +127,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
             child: Opacity(
               opacity: isDark ? 0.015 : 0.03,
               child: Image.network(
-                'https://lh3.googleusercontent.com/aida-public/AB6AXuAZpTruylWYjT5aYuPT27GXEMSnuQeu3GrM6NBNF3qeVWFkH7p7MU1b-GJn9InvNH10SLI2i7fMLXozXv2rQbFSrqqTJoTvXUE_WJu-6nJuUq8TQaifAkqVAlGB-dgd9MKb2LwGttykrJFdy6xvE3t_ZULSdPKUfoQkHeOe-RoABZa803vpyQbiMr-IGgw1jROmHZC2Lhx8-jXnj9unhrdWtgh7brnm-oL7N-ADg4lDRS2jlevVc3Qbuoh5TYsSwtvaqcx3b0KaSHE9',
+                'https://images.unsplash.com/photo-1514933651103-005eec06c04b?q=80&w=1080&auto=format&fit=crop',
                 fit: BoxFit.cover,
               ),
             ),

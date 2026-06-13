@@ -28,6 +28,8 @@ abstract class TableDto with _$TableDto {
     @JsonKey(name: 'occupied_seats') @Default([]) List<GuestSeatDto> occupiedSeats,
     @JsonKey(name: 'merged_table_ids') @Default([]) List<String> mergedTableIds,
     @JsonKey(name: 'version_num') @Default(1) int versionNum,
+    @JsonKey(name: 'floor_id') String? floorId,
+    String? floorName,
   }) = _TableDto;
 
   factory TableDto.fromJson(Map<String, dynamic> json) => _$TableDtoFromJson(json);
@@ -42,6 +44,14 @@ abstract class TableDto with _$TableDto {
     }
     mappedJson['capacity'] = mappedJson['capacity'] ?? 0;
     mappedJson['version_num'] = mappedJson['version_num'] ?? 1;
+
+    // Extract floor name from Supabase join: table_floors(name)
+    final floorData = mappedJson['table_floors'];
+    if (floorData is Map && floorData['name'] != null) {
+      mappedJson['floorName'] = 'Floor ${floorData['name']}';
+    }
+    // Remove the nested object so freezed doesn't choke
+    mappedJson.remove('table_floors');
 
     return TableDto.fromJson(mappedJson);
   }

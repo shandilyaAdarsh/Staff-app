@@ -47,6 +47,7 @@ import '../features/profile/presentation/screens/developer_settings_screen.dart'
 import '../features/manager/presentation/screens/floor_analytics_screen.dart';
 import '../features/manager/presentation/screens/staff_performance_screen.dart';
 import '../features/manager/presentation/screens/operational_alerts_screen.dart';
+import '../features/profile/presentation/screens/staff_settings_screen.dart';
 import '../features/realtime/presentation/state/realtime_providers.dart';
 import '../features/realtime/domain/entities/realtime_state_model.dart';
 import '../core/widgets/realtime_banner.dart';
@@ -144,7 +145,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       if (authState.loggedInStaff == null) {
-        if (loc != '/login' && loc != '/device-registration') {
+        if (loc != '/login') {
           return '/login';
         }
         return null;
@@ -161,9 +162,14 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // If logged in, shift started, operational, and not locked...
 
-      // Enforce profile completion
+      // Enforce profile completion — check both DB flag and persistent local cache.
+      // The local cache (SharedPreferences) is keyed per staff ID and survives
+      // logout, lock, app kill, and hot restart.
       final staff = authState.loggedInStaff;
-      if (staff != null && !staff.profileCompleted) {
+      final isProfileDone = staff != null &&
+          (staff.profileCompleted ||
+           deviceStore.isProfileCompletedFor(staff.id));
+      if (staff != null && !isProfileDone) {
         if (loc != '/profile-setup') {
           return '/profile-setup';
         }
@@ -171,7 +177,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       // If profile is completed, ensure they can't access profile-setup manually
-      if (loc == '/profile-setup' && staff != null && staff.profileCompleted) {
+      if (loc == '/profile-setup' && isProfileDone) {
         return '/tables';
       }
 
@@ -402,6 +408,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/manager/alerts',
         name: 'operational-alerts',
         builder: (context, state) => const OperationalAlertsScreen(),
+      ),
+      GoRoute(
+        path: '/settings',
+        name: 'settings',
+        builder: (context, state) => const StaffSettingsScreen(),
       ),
     ],
   );

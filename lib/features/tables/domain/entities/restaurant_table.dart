@@ -47,6 +47,8 @@ class RestaurantTable extends Equatable {
   final String? activeOrderId;
   final List<GuestSeat> occupiedSeats;
   final List<String> mergedTableIds;
+  final String? floorId;
+  final String? floorName;
 
   const RestaurantTable({
     required this.id,
@@ -56,6 +58,8 @@ class RestaurantTable extends Equatable {
     this.activeOrderId,
     this.occupiedSeats = const [],
     this.mergedTableIds = const [],
+    this.floorId,
+    this.floorName,
   });
 
   bool get canAcceptGuests => status == TableStatus.available || status == TableStatus.cleaning;
@@ -70,6 +74,8 @@ class RestaurantTable extends Equatable {
       activeOrderId: orderId ?? activeOrderId,
       occupiedSeats: occupiedSeats,
       mergedTableIds: mergedTableIds,
+      floorId: floorId,
+      floorName: floorName,
     );
   }
 
@@ -81,6 +87,8 @@ class RestaurantTable extends Equatable {
     String? activeOrderId,
     List<GuestSeat>? occupiedSeats,
     List<String>? mergedTableIds,
+    String? floorId,
+    String? floorName,
   }) {
     return RestaurantTable(
       id: id ?? this.id,
@@ -90,9 +98,11 @@ class RestaurantTable extends Equatable {
       activeOrderId: activeOrderId ?? this.activeOrderId,
       occupiedSeats: occupiedSeats ?? this.occupiedSeats,
       mergedTableIds: mergedTableIds ?? this.mergedTableIds,
+      floorId: floorId ?? this.floorId,
+      floorName: floorName ?? this.floorName,
     );
   }
 
   @override
-  List<Object?> get props => [id, label, capacity, status, activeOrderId, occupiedSeats, mergedTableIds];
+  List<Object?> get props => [id, label, capacity, status, activeOrderId, occupiedSeats, mergedTableIds, floorId, floorName];
 }

@@ -18,7 +18,16 @@ class OrderAlertAudioManager {
   Timer? _repeatTimer;
   bool _isPlaying = false;
   int _playCount = 0;
+  double _volume = 1.0; // 0.0 – 1.0
   static const int _maxPlays = 6; // 6 × 5s = 30s max
+
+  double get volume => _volume;
+
+  void setVolume(double value) {
+    _volume = value.clamp(0.0, 1.0);
+    _player?.setVolume(_volume);
+    debugPrint('[OrderAlertAudio] Volume set to $_volume');
+  }
 
   /// Start playing the alert sound immediately and repeat every 5 seconds.
   Future<void> startAlert() async {
@@ -44,7 +53,7 @@ class OrderAlertAudioManager {
     try {
       await _player?.play(
         AssetSource('sounds/order_alert.wav'),
-        volume: 1.0,
+        volume: _volume,
       );
       debugPrint('[OrderAlertAudio] Playing alert sound (play #$_playCount)');
     } catch (e) {
@@ -72,7 +81,7 @@ class OrderAlertAudioManager {
       final readyPlayer = AudioPlayer();
       await readyPlayer.play(
         AssetSource('sounds/order_ready.wav'), // distinct asset
-        volume: 1.0,
+        volume: _volume,
       );
       // Auto-dispose after it finishes
       Future.delayed(const Duration(seconds: 3), () => readyPlayer.dispose());

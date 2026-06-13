@@ -1,10 +1,11 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthException;
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../entities/staff_member.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/network/secure_storage.dart';
+import '../../../../core/errors/exceptions.dart';
 
 class AuthRepository {
   // ignore: unused_field
@@ -47,7 +48,13 @@ class AuthRepository {
       return null;
     } catch (e) {
       debugPrint('[AuthRepository] adminLogin error: $e');
-      return null;
+      if (e is ServerException && e.statusCode == null) {
+        throw const AuthException(message: 'Cannot reach server. Check your connection.');
+      }
+      if (e is ServerException && e.statusCode == 401) {
+        throw const AuthException(message: 'Invalid email or password');
+      }
+      throw AuthException(message: e.toString());
     }
   }
 
@@ -78,6 +85,13 @@ class AuthRepository {
           firstName: row['first_name'] as String? ?? '',
           lastName: row['last_name'] as String? ?? '',
           profileCompletedAt: row['profile_completed_at'] != null ? DateTime.tryParse(row['profile_completed_at']) : null,
+          department: row['department'] as String?,
+          gender: row['gender'] as String?,
+          mobileNumber: row['mobile_number'] as String?,
+          address: row['address'] as String?,
+          emergencyContactName: row['emergency_contact_name'] as String?,
+          emergencyContactNumber: row['emergency_contact_number'] as String?,
+          dob: row['dob'] != null ? DateTime.tryParse(row['dob']) : null,
         );
       }).toList();
     } catch (e) {

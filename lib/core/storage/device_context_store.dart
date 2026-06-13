@@ -32,9 +32,26 @@ class DeviceContextStore {
 
   bool get hasContext => tenantId != null && branchId != null;
 
+  // --- Profile wizard completion (per-staff persistent cache) ---
+
+  /// Mark a specific staff member's profile as completed.
+  /// This survives logout, lock, app kill, and hot restart.
+  Future<void> markProfileCompleted(String staffId) async {
+    await _prefs.setBool('wizard_completed_$staffId', true);
+  }
+
+  /// Check if a specific staff member has completed the profile wizard.
+  /// Synchronous read — safe for use in router redirect.
+  bool isProfileCompletedFor(String staffId) {
+    return _prefs.getBool('wizard_completed_$staffId') ?? false;
+  }
+
   Future<void> clearContext() async {
     await _prefs.remove(_kTenantIdKey);
     await _prefs.remove(_kBranchIdKey);
     await _prefs.remove(_kBranchNameKey);
+    // NOTE: wizard_completed_* keys are intentionally NOT cleared here.
+    // They persist across device re-registration so returning staff
+    // don't see the wizard again.
   }
 }

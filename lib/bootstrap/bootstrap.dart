@@ -17,14 +17,14 @@ import '../app/app.dart';
 import '../app/observers/provider_observer.dart';
 import '../features/auth/presentation/state/auth_notifier.dart';
 
-Future<void> bootstrap({
+void bootstrap({
   required Environment environment,
   required String apiBaseUrl,
   required String websocketUrl,
   required bool enableSentry,
   String? supabaseUrl,
   String? supabaseAnonKey,
-}) async {
+}) {
   // Initialize structured logger
   final talker = TalkerFlutter.init(
     settings: TalkerSettings(
@@ -33,7 +33,7 @@ Future<void> bootstrap({
     ),
   );
 
-  await runZonedGuarded(() async {
+  runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
 
     // Initialize environment configurations

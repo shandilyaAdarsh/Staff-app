@@ -321,11 +321,42 @@ class _IncomingOrderAlertOverlayState
   }
 
   Widget _buildCardContent() {
+    final alertState = ref.watch(orderAlertNotifierProvider);
+
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (alertState.hasOverflow)
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade800,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '⚠️ ${alertState.overflowCount} alert(s) dropped — queue was full',
+                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white, size: 16),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () {
+                      ref.read(orderAlertNotifierProvider.notifier).clearOverflow();
+                    },
+                  ),
+                ],
+              ),
+            ),
           _buildHeader(),
           const SizedBox(height: 20),
           _buildTableBadge(),

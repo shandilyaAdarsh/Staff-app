@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../state/auth_notifier.dart';
 import '../state/auth_state.dart';
 import '../../domain/entities/staff_member.dart';
+import '../../../../core/storage/device_context_store.dart';
 
 class StaffLoginScreen extends ConsumerStatefulWidget {
   const StaffLoginScreen({super.key});
@@ -128,7 +129,10 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_rounded, color: isDark ? Colors.white : const Color(0xFF0F172A)),
-          onPressed: () => context.go('/device-registration'),
+          onPressed: () async {
+            await ref.read(deviceContextStoreProvider).clearContext();
+            if (context.mounted) context.go('/device-registration');
+          },
         ),
       ),
       extendBodyBehindAppBar: true,
@@ -187,7 +191,7 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
       fit: StackFit.expand,
       children: [
         Image.network(
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuBq-2BYWUiyRfwz5zWnvrKnshoLMnuxzhxC-txG08J8KulBeZkyqqrz0zy3AWnwo8FhfgP2ONrJ4EUSE0mL5Cs5AzIDM6uQWFWALKABDy9nYPHvYOlfkuluHBQ7fh7ej0JN5zd5my88DUh2Ogqux43zz5tSLIWTKuwtjB19P1ioiekP91xYvrITQxciFrYmBEBbos6bDhOPh8EQ88kQHdmMOUr02mhpci_Etu9l3TF2s4WJtg64hq8HE_UALFN0cTUF5a7z_O9au-OY',
+          'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?q=80&w=1080&auto=format&fit=crop',
           fit: BoxFit.cover,
         ),
         Container(
@@ -208,7 +212,10 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
             left: 24,
             child: IconButton(
               icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-              onPressed: () => context.go('/device-registration'),
+              onPressed: () async {
+                await ref.read(deviceContextStoreProvider).clearContext();
+                if (context.mounted) context.go('/device-registration');
+              },
               tooltip: 'Go Back',
             ),
           ),
@@ -250,7 +257,7 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
       child: Opacity(
         opacity: 0.1,
         child: Image.network(
-          'https://lh3.googleusercontent.com/aida-public/AB6AXu-bLjK6ykW7QmqK4EmDRtZ4i6wVdPBFjhn79QSaYXDE43Lt-Z3YQUjJ5ZeIzOtxVJlIO6gyo_2RasqwbMfEfAoUCjwVLRanEPl1hygqATwYnGQ8Xcvfbnt4M5Ryq8dS1640ASFelRgJjw01C4rrke-Q5nh8_rf8ZX5jwDLKHrr1i2ncj8-2-v74nUlppmmDw0Uq4QwwIOIABaitSKc1DFMmyCs2nzZM4KuzXr_Hc-8LYyDsRH78LfmGklwIVdVA0hauiP4pMRDzNwr',
+          'https://images.unsplash.com/photo-1514933651103-005eec06c04b?q=80&w=1080&auto=format&fit=crop',
           fit: BoxFit.cover,
         ),
       ),

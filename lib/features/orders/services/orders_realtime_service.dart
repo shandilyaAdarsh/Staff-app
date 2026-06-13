@@ -41,6 +41,13 @@ class OrdersRealtimeService {
           table: 'orders',
           filter: filter,
           callback: (payload) {
+            final receivedBranchId = payload.newRecord['branch_id'];
+            if (receivedBranchId != _branchId) {
+              debugPrint('[SECURITY ALERT] Wrong branch order received!');
+              debugPrint('  Expected: $_branchId | Got: $receivedBranchId');
+              return; // Drop silently
+            }
+
             _eventController.add(RealtimeOrderEvent(
               RealtimeOrderEventType.insert,
               payload.newRecord,
@@ -53,6 +60,12 @@ class OrdersRealtimeService {
           table: 'orders',
           filter: filter,
           callback: (payload) {
+            final receivedBranchId = payload.newRecord['branch_id'];
+            if (receivedBranchId != _branchId) {
+              debugPrint('[SECURITY ALERT] Wrong branch update received!');
+              return;
+            }
+
             _eventController.add(RealtimeOrderEvent(
               RealtimeOrderEventType.update,
               payload.newRecord,

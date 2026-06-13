@@ -19,6 +19,8 @@ extension TableDtoMapper on TableDto {
         orderedItemIds: s.orderedItemIds,
       )).toList(),
       mergedTableIds: mergedTableIds,
+      floorId: floorId,
+      floorName: floorName,
     );
   }
 }
@@ -37,6 +39,8 @@ extension RestaurantTableMapper on RestaurantTable {
         orderedItemIds: s.orderedItemIds,
       )).toList(),
       mergedTableIds: mergedTableIds,
+      floorId: floorId,
+      floorName: floorName,
     );
   }
 }

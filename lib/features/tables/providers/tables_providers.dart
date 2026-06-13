@@ -11,6 +11,7 @@ import '../data/repositories/tables_repository_impl.dart';
 import '../domain/repositories/tables_repository.dart';
 
 import '../../../../core/network/network_providers.dart';
+import '../../auth/presentation/state/auth_notifier.dart';
 
 // 1. Core clients
 final supabaseClientProvider = Provider<SupabaseClient>((ref) => Supabase.instance.client);
@@ -18,7 +19,8 @@ final supabaseClientProvider = Provider<SupabaseClient>((ref) => Supabase.instan
 // 2. Data Sources
 final tablesRemoteDatasourceProvider = Provider<TablesRemoteDatasource>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  return TablesRemoteDatasourceImpl(client);
+  final authState = ref.watch(authNotifierProvider);
+  return TablesRemoteDatasourceImpl(client, authState.selectedBranch?.id ?? '');
 });
 
 final tablesLocalDatasourceProvider = Provider((ref) {

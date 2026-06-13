@@ -5,15 +5,18 @@ import 'tables_remote_datasource.dart';
 
 class TablesRemoteDatasourceImpl implements TablesRemoteDatasource {
   final SupabaseClient _client;
+  final String _branchId;
 
-  TablesRemoteDatasourceImpl(this._client);
+  TablesRemoteDatasourceImpl(this._client, this._branchId);
 
   @override
   Future<List<TableDto>> getTables() async {
     final response = await _client
         .from('tables')
-        .select()
-        .order('table_number', ascending: true)
+        .select('*, table_floors(name)')
+        .eq('branch_id', _branchId)
+        .eq('is_active', true)
+        .order('sequence_num', ascending: true)
         .order('label', ascending: true);
 
     return (response as List)
@@ -40,9 +43,17 @@ class TablesRemoteDatasourceImpl implements TablesRemoteDatasource {
     return _client
         .from('tables')
         .stream(primaryKey: ['id'])
-        .order('table_number', ascending: true)
+        .eq('branch_id', _branchId)
+        .order('sequence_num', ascending: true)
         .order('label', ascending: true)
-        .map((event) => event.map((json) => TableDto.fromMap(json)).toList());
+        .map((event) {
+          // The stream doesn't support joins, so we parse floor_id from the raw row
+          // and the floor name will be populated on the initial fetch.
+          return event
+              .where((json) => json['is_active'] == true)
+              .map((json) => TableDto.fromMap(json))
+              .toList();
+        });
   }
 
   @override

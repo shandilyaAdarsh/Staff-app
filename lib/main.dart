@@ -3,10 +3,8 @@ import 'package:flutter/widgets.dart';
 import 'bootstrap/bootstrap.dart';
 import 'core/config/environment.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  await bootstrap(
+void main() {
+  bootstrap(
     environment: Environment.dev,
     apiBaseUrl: 'http://localhost:3001',
     websocketUrl: 'ws://localhost:3001/api/v1/realtime',

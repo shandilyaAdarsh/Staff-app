@@ -132,7 +132,7 @@ class WelcomeScreen extends ConsumerWidget {
                               Transform.scale(
                                 scale: 1.6,
                                 child: Image.network(
-                                  'https://lh3.googleusercontent.com/aida-public/AB6AXuAzzu5bs1lezhbIUhhSUw7gKmLLEVKpop_nLhoT_e34h8tSkpnhn7gzISlJfQyLD990KD_F-iwZ1vhqGQDzzN3htFmaA5vNomkPwmNzLXSRAbIbJxnLJD-WKYdr3y6BmTYt9ZHRRZ686IB2kgGgtDTzIo0TJdnjKGucLwpSs_ZpkZNTp_JMkGSqZychK4H9kptaJG-4irVhG2Tfu6H4i1oWfShCk9emLJVfe2uMhK852fh4EiDFbewcSbkya8MXd6BiiY1xOiCra7EevyM',
+                                  'https://images.unsplash.com/photo-1514933651103-005eec06c04b?q=80&w=1080&auto=format&fit=crop',
                                   fit: BoxFit.contain,
                                 ),
                               ),

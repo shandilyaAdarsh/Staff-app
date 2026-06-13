@@ -97,11 +97,22 @@ class AuthNotifier extends _$AuthNotifier {
   Future<bool> login(String employeeId, String pin) async {
     state = state.copyWith(errorMessage: null);
 
+    // Always refresh staff list from the DB so profile_completed is up-to-date
+    await loadStaffForBranch();
+
     final repo = ref.read(authRepositoryProvider);
     final staff = await repo.loginWithPin(_staffMembers, employeeId, pin);
 
     if (staff != null) {
-      state = state.copyWith(loggedInStaff: staff, isLocked: false);
+      // Check persistent wizard flag as a belt-and-suspenders fallback.
+      // If the DB hasn't caught up but we already marked it locally, honour that.
+      final store = ref.read(deviceContextStoreProvider);
+      final locallyCompleted = store.isProfileCompletedFor(staff.id);
+      final effectiveStaff = locallyCompleted && !staff.profileCompleted
+          ? staff.copyWith(profileCompleted: true)
+          : staff;
+
+      state = state.copyWith(loggedInStaff: effectiveStaff, isLocked: false);
       return true;
     } else {
       state = state.copyWith(
@@ -215,6 +226,14 @@ class AuthNotifier extends _$AuthNotifier {
         gender: profileData['gender'] ?? staff.gender,
       );
       state = state.copyWith(loggedInStaff: updatedStaff);
+
+      // Persist wizard completion to SharedPreferences so it survives
+      // logout, lock, app kill, and hot restart.
+      if (profileData['profile_completed'] == true) {
+        final store = ref.read(deviceContextStoreProvider);
+        await store.markProfileCompleted(staff.id);
+        debugPrint('[AuthNotifier] Wizard completion persisted for staff ${staff.id}');
+      }
     }
     
     return success;

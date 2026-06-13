@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/order_alert_model.dart';
 import '../../../../core/network/network_providers.dart';
+import '../../services/order_action_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // State
@@ -22,6 +23,9 @@ class OrderAlertState {
   final int totalExpired;
   final List<Duration> responseTimes;
 
+  final bool hasOverflow;
+  final int overflowCount;
+
   const OrderAlertState({
     this.queue = const [],
     this.readyQueue = const [],
@@ -30,6 +34,8 @@ class OrderAlertState {
     this.totalPassed = 0,
     this.totalExpired = 0,
     this.responseTimes = const [],
+    this.hasOverflow = false,
+    this.overflowCount = 0,
   });
 
   IncomingOrderAlert? get currentAlert =>
@@ -45,6 +51,8 @@ class OrderAlertState {
     int? totalPassed,
     int? totalExpired,
     List<Duration>? responseTimes,
+    bool? hasOverflow,
+    int? overflowCount,
   }) {
     return OrderAlertState(
       queue: queue ?? this.queue,
@@ -54,6 +62,8 @@ class OrderAlertState {
       totalPassed: totalPassed ?? this.totalPassed,
       totalExpired: totalExpired ?? this.totalExpired,
       responseTimes: responseTimes ?? this.responseTimes,
+      hasOverflow: hasOverflow ?? this.hasOverflow,
+      overflowCount: overflowCount ?? this.overflowCount,
     );
   }
 }
@@ -73,6 +83,8 @@ class OrderAlertNotifier extends StateNotifier<OrderAlertState> {
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
+  static const int maxQueueSize = 10;
+
   /// Called by OperationalRuntimeBridge when an ORDER_ASSIGNED event arrives.
   void enqueueAlert(Map<String, dynamic> payload) {
     final alert = IncomingOrderAlert.fromPayload(payload);
@@ -86,13 +98,30 @@ class OrderAlertNotifier extends StateNotifier<OrderAlertState> {
 
     debugPrint('[OrderAlert] Enqueuing alert for order ${alert.orderId}');
 
-    state = state.copyWith(
-      queue: [...state.queue, alert],
-      totalReceived: state.totalReceived + 1,
-    );
+    if (state.queue.length >= maxQueueSize) {
+      debugPrint(
+        '[OrderAlerts] Queue full ($maxQueueSize) — dropping oldest. '
+        'Dropped: ${state.queue.first.orderId}',
+      );
+      state = state.copyWith(
+        queue: [...state.queue.sublist(1), alert],
+        totalReceived: state.totalReceived + 1,
+        hasOverflow: true,
+        overflowCount: state.overflowCount + 1,
+      );
+    } else {
+      state = state.copyWith(
+        queue: [...state.queue, alert],
+        totalReceived: state.totalReceived + 1,
+      );
+    }
 
     // Start 30-second timeout timer
     _startTimeoutTimer(alert);
+  }
+
+  void clearOverflow() {
+    state = state.copyWith(hasOverflow: false, overflowCount: 0);
   }
 
   /// Called by OperationalRuntimeBridge when an ORDER_READY_FOR_PICKUP event arrives.
@@ -160,23 +189,18 @@ class OrderAlertNotifier extends StateNotifier<OrderAlertState> {
     if (alert == null) return false;
 
     try {
-      final dio = _ref.read(dioClientProvider);
-      final response = await dio.patch(
-        '/api/v1/orders/$orderId/accept',
-        data: {'versionNum': versionNum},
-      );
+      final actionService = _ref.read(orderActionServiceProvider);
+      await actionService.queueAcceptAlert(orderId, versionNum);
 
-      if (response.statusCode == 200) {
-        _cancelTimeoutTimer(orderId);
-        final elapsed = DateTime.now().difference(alert.receivedAt);
-        _updateAlertStatus(orderId, OrderAlertStatus.accepted);
-        state = state.copyWith(
-          totalAccepted: state.totalAccepted + 1,
-          responseTimes: [...state.responseTimes, elapsed],
-        );
-        _removeAlertAfterDelay(orderId);
-        return true;
-      }
+      _cancelTimeoutTimer(orderId);
+      final elapsed = DateTime.now().difference(alert.receivedAt);
+      _updateAlertStatus(orderId, OrderAlertStatus.accepted);
+      state = state.copyWith(
+        totalAccepted: state.totalAccepted + 1,
+        responseTimes: [...state.responseTimes, elapsed],
+      );
+      _removeAlertAfterDelay(orderId);
+      return true;
     } catch (e) {
       debugPrint('[OrderAlert] Failed to accept order $orderId: $e');
     }
@@ -193,19 +217,18 @@ class OrderAlertNotifier extends StateNotifier<OrderAlertState> {
     if (alert == null) return false;
 
     try {
-      final dio = _ref.read(dioClientProvider);
-      final response = await dio.patch(
-        '/api/v1/orders/$orderId/reassign',
-        data: {'toStaffId': toStaffId, 'branchId': branchId},
+      final actionService = _ref.read(orderActionServiceProvider);
+      await actionService.queuePassAlert(
+        orderId: orderId,
+        toStaffId: toStaffId,
+        branchId: branchId,
       );
 
-      if (response.statusCode == 200) {
-        _cancelTimeoutTimer(orderId);
-        _updateAlertStatus(orderId, OrderAlertStatus.passed);
-        state = state.copyWith(totalPassed: state.totalPassed + 1);
-        _removeAlertAfterDelay(orderId);
-        return true;
-      }
+      _cancelTimeoutTimer(orderId);
+      _updateAlertStatus(orderId, OrderAlertStatus.passed);
+      state = state.copyWith(totalPassed: state.totalPassed + 1);
+      _removeAlertAfterDelay(orderId);
+      return true;
     } catch (e) {
       debugPrint('[OrderAlert] Failed to pass order $orderId: $e');
     }

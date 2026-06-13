@@ -14,8 +14,7 @@ class TableGridScreen extends ConsumerStatefulWidget {
 }
 
 class _TableGridScreenState extends ConsumerState<TableGridScreen> {
-  String _selectedZone = 'Main Hall';
-  final List<String> _zones = ['Main Hall', 'Patio', 'Bar'];
+  String _selectedZone = 'All';
 
   @override
   Widget build(BuildContext context) {
@@ -41,24 +40,44 @@ class _TableGridScreenState extends ConsumerState<TableGridScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Header & Zone Toggle
-                        if (isDesktop)
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              _buildPageHeader(isDark),
-                              _buildZoneTabs(isDark),
-                            ],
-                          )
-                        else
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildPageHeader(isDark),
-                              const SizedBox(height: 16),
-                              _buildZoneTabs(isDark),
-                            ],
-                          ),
+                        stateAsync.when(
+                          loading: () => _buildPageHeader(isDark),
+                          error: (_, __) => _buildPageHeader(isDark),
+                          data: (state) {
+                            // Extract unique floor names from tables
+                            final floorNames = <String>{'All'};
+                            for (final t in state.tables) {
+                              if (t.floorName != null && t.floorName!.isNotEmpty) {
+                                floorNames.add(t.floorName!);
+                              }
+                            }
+                            final zones = floorNames.toList();
+                            // Reset selection if current zone no longer exists
+                            if (!zones.contains(_selectedZone)) {
+                              _selectedZone = 'All';
+                            }
+
+                            if (isDesktop) {
+                              return Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  _buildPageHeader(isDark),
+                                  _buildZoneTabs(isDark, zones),
+                                ],
+                              );
+                            } else {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildPageHeader(isDark),
+                                  const SizedBox(height: 16),
+                                  _buildZoneTabs(isDark, zones),
+                                ],
+                              );
+                            }
+                          },
+                        ),
                         
                         const SizedBox(height: 32),
 
@@ -86,7 +105,11 @@ class _TableGridScreenState extends ConsumerState<TableGridScreen> {
                             ),
                           ),
                           data: (state) {
-                            final tables = state.tables;
+                            // Filter tables by selected floor
+                            final tables = _selectedZone == 'All'
+                                ? state.tables
+                                : state.tables.where((t) => t.floorName == _selectedZone).toList();
+
                             if (tables.isEmpty) {
                               return Center(
                                 child: Text(
@@ -145,6 +168,7 @@ class _TableGridScreenState extends ConsumerState<TableGridScreen> {
     );
   }
 
+
   Widget _buildPageHeader(bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -170,44 +194,47 @@ class _TableGridScreenState extends ConsumerState<TableGridScreen> {
     );
   }
 
-  Widget _buildZoneTabs(bool isDark) {
+  Widget _buildZoneTabs(bool isDark, List<String> zones) {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF3F4F5),
         borderRadius: BorderRadius.circular(12),
       ),
       padding: const EdgeInsets.all(4),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: _zones.map((zone) {
-          final isSelected = _selectedZone == zone;
-          return InkWell(
-            onTap: () => setState(() => _selectedZone = zone),
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-              decoration: BoxDecoration(
-                color: isSelected 
-                    ? (isDark ? const Color(0xFF334155) : Colors.white)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: isSelected 
-                    ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))]
-                    : [],
-              ),
-              child: Text(
-                zone,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 14,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: zones.map((zone) {
+            final isSelected = _selectedZone == zone;
+            return InkWell(
+              onTap: () => setState(() => _selectedZone = zone),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                decoration: BoxDecoration(
                   color: isSelected 
-                      ? const Color(0xFFE31E24)
-                      : (isDark ? Colors.white54 : const Color(0xFF64748B)),
+                      ? (isDark ? const Color(0xFF334155) : Colors.white)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: isSelected 
+                      ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))]
+                      : [],
+                ),
+                child: Text(
+                  zone,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                    color: isSelected 
+                        ? const Color(0xFFE31E24)
+                        : (isDark ? Colors.white54 : const Color(0xFF64748B)),
+                  ),
                 ),
               ),
-            ),
-          );
-        }).toList(),
+            );
+          }).toList(),
+        ),
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../state/auth_notifier.dart';
+import '../../../../core/errors/exceptions.dart';
 
 class DeviceRegistrationScreen extends ConsumerStatefulWidget {
   const DeviceRegistrationScreen({super.key});
@@ -46,17 +47,27 @@ class _DeviceRegistrationScreenState
     });
 
     final notifier = ref.read(authNotifierProvider.notifier);
-    final contextData = await notifier.adminLogin(email, password);
+    try {
+      final contextData = await notifier.adminLogin(email, password);
 
-    if (contextData != null) {
+      if (contextData != null) {
+        setState(() {
+          _tenantId = contextData['tenantId'];
+          _branches = contextData['branches'];
+          _showBranchSelection = true;
+        });
+      } else {
+        setState(() {
+          _errorMessage = 'Invalid email or password';
+        });
+      }
+    } on AuthException catch (e) {
       setState(() {
-        _tenantId = contextData['tenantId'];
-        _branches = contextData['branches'];
-        _showBranchSelection = true;
+        _errorMessage = e.message;
       });
-    } else {
+    } catch (e) {
       setState(() {
-        _errorMessage = 'Invalid email or password';
+        _errorMessage = 'An unexpected error occurred';
       });
     }
 
@@ -74,7 +85,7 @@ class _DeviceRegistrationScreenState
       branch['name'],
     );
     if (mounted) {
-      context.go('/staff-login');
+      context.go('/login');
     }
   }
 
