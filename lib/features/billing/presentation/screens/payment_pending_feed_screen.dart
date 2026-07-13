@@ -52,8 +52,15 @@ class _PaymentPendingFeedScreenState extends ConsumerState<PaymentPendingFeedScr
           final orders = snapshot.data ?? [];
           // Awaiting settlement: completed or ready orders that aren't closed/archived
           final pendingSettlements = orders.where((o) => 
-            o.status == OrderStatus.completed || o.status == OrderStatus.ready
+            o.status == OrderStatus.completed || o.status == OrderStatus.ready || o.isPaymentRequested
           ).toList();
+
+          // Sort so payment requested orders appear first
+          pendingSettlements.sort((a, b) {
+            if (a.isPaymentRequested && !b.isPaymentRequested) return -1;
+            if (!a.isPaymentRequested && b.isPaymentRequested) return 1;
+            return b.updatedAt.compareTo(a.updatedAt);
+          });
 
           if (pendingSettlements.isEmpty) {
             return Center(
@@ -105,20 +112,42 @@ class _PaymentPendingFeedScreenState extends ConsumerState<PaymentPendingFeedScr
                             'Table ${order.tableId}',
                             style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              'Printed ${elapsedMinutes}m ago',
-                              style: const TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 11,
+                          Row(
+                            children: [
+                              if (order.isPaymentRequested)
+                                Container(
+                                  margin: const EdgeInsets.only(right: 8),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.statusReady.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: AppColors.statusReady.withValues(alpha: 0.3)),
+                                  ),
+                                  child: Text(
+                                    '${order.customerPaymentIntent!.toUpperCase()} REQ',
+                                    style: const TextStyle(
+                                      color: AppColors.statusReady,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'Printed ${elapsedMinutes}m ago',
+                                  style: const TextStyle(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 11,
+                                  ),
+                                ),
                               ),
-                            ),
+                            ],
                           ),
                         ],
                       ),

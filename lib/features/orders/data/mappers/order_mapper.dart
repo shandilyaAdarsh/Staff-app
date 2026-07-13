@@ -104,9 +104,10 @@ extension OrderDtoMapper on OrderDto {
         orElse: () => OrderStatus.draft,
       ),
       createdAt: DateTime.parse(createdAt),
-      updatedAt: updatedAt != null ? DateTime.parse(updatedAt!) : DateTime.now(),
-      waiterName: waiterName ?? 'Unknown',
+      updatedAt: updatedAt != null ? DateTime.parse(updatedAt!).toLocal() : DateTime.now(),
+      waiterName: waiterName ?? 'John Doe',
       cancelLogs: cancelLogs ?? [],
+      customerPaymentIntent: customerPaymentIntent,
     );
   }
 }

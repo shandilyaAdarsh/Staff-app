@@ -45,6 +45,7 @@ extension TableDtoMapper on TableDto {
       mergedTableIds: mergedTableIds,
       floorId: floorId,
       floorName: floorName,
+      customerPaymentIntent: customerPaymentIntent,
     );
   }
 }
@@ -65,6 +66,7 @@ extension RestaurantTableMapper on RestaurantTable {
       mergedTableIds: mergedTableIds,
       floorId: floorId,
       floorName: floorName,
+      customerPaymentIntent: customerPaymentIntent,
     );
   }
 }

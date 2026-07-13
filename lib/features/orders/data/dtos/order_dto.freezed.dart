@@ -871,7 +871,7 @@ $MenuProductDtoCopyWith<$Res> get product {
 /// @nodoc
 mixin _$OrderDto {
 
- String get id; String? get tableId; List<OrderItemDto> get items; String get status; String get createdAt; String? get updatedAt; String? get waiterName; List<String>? get cancelLogs;
+ String get id; String? get tableId; List<OrderItemDto> get items; String get status; String get createdAt; String? get updatedAt; String? get waiterName; List<String>? get cancelLogs;@JsonKey(name: 'customer_payment_intent') String? get customerPaymentIntent;
 /// Create a copy of OrderDto
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -884,16 +884,16 @@ $OrderDtoCopyWith<OrderDto> get copyWith => _$OrderDtoCopyWithImpl<OrderDto>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is OrderDto&&(identical(other.id, id) || other.id == id)&&(identical(other.tableId, tableId) || other.tableId == tableId)&&const DeepCollectionEquality().equals(other.items, items)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.waiterName, waiterName) || other.waiterName == waiterName)&&const DeepCollectionEquality().equals(other.cancelLogs, cancelLogs));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OrderDto&&(identical(other.id, id) || other.id == id)&&(identical(other.tableId, tableId) || other.tableId == tableId)&&const DeepCollectionEquality().equals(other.items, items)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.waiterName, waiterName) || other.waiterName == waiterName)&&const DeepCollectionEquality().equals(other.cancelLogs, cancelLogs)&&(identical(other.customerPaymentIntent, customerPaymentIntent) || other.customerPaymentIntent == customerPaymentIntent));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,tableId,const DeepCollectionEquality().hash(items),status,createdAt,updatedAt,waiterName,const DeepCollectionEquality().hash(cancelLogs));
+int get hashCode => Object.hash(runtimeType,id,tableId,const DeepCollectionEquality().hash(items),status,createdAt,updatedAt,waiterName,const DeepCollectionEquality().hash(cancelLogs),customerPaymentIntent);
 
 @override
 String toString() {
-  return 'OrderDto(id: $id, tableId: $tableId, items: $items, status: $status, createdAt: $createdAt, updatedAt: $updatedAt, waiterName: $waiterName, cancelLogs: $cancelLogs)';
+  return 'OrderDto(id: $id, tableId: $tableId, items: $items, status: $status, createdAt: $createdAt, updatedAt: $updatedAt, waiterName: $waiterName, cancelLogs: $cancelLogs, customerPaymentIntent: $customerPaymentIntent)';
 }
 
 
@@ -904,7 +904,7 @@ abstract mixin class $OrderDtoCopyWith<$Res>  {
   factory $OrderDtoCopyWith(OrderDto value, $Res Function(OrderDto) _then) = _$OrderDtoCopyWithImpl;
 @useResult
 $Res call({
- String id, String? tableId, List<OrderItemDto> items, String status, String createdAt, String? updatedAt, String? waiterName, List<String>? cancelLogs
+ String id, String? tableId, List<OrderItemDto> items, String status, String createdAt, String? updatedAt, String? waiterName, List<String>? cancelLogs,@JsonKey(name: 'customer_payment_intent') String? customerPaymentIntent
 });
 
 
@@ -921,7 +921,7 @@ class _$OrderDtoCopyWithImpl<$Res>
 
 /// Create a copy of OrderDto
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? tableId = freezed,Object? items = null,Object? status = null,Object? createdAt = null,Object? updatedAt = freezed,Object? waiterName = freezed,Object? cancelLogs = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? tableId = freezed,Object? items = null,Object? status = null,Object? createdAt = null,Object? updatedAt = freezed,Object? waiterName = freezed,Object? cancelLogs = freezed,Object? customerPaymentIntent = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,tableId: freezed == tableId ? _self.tableId : tableId // ignore: cast_nullable_to_non_nullable
@@ -931,7 +931,8 @@ as String,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: 
 as String,updatedAt: freezed == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable
 as String?,waiterName: freezed == waiterName ? _self.waiterName : waiterName // ignore: cast_nullable_to_non_nullable
 as String?,cancelLogs: freezed == cancelLogs ? _self.cancelLogs : cancelLogs // ignore: cast_nullable_to_non_nullable
-as List<String>?,
+as List<String>?,customerPaymentIntent: freezed == customerPaymentIntent ? _self.customerPaymentIntent : customerPaymentIntent // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -1016,10 +1017,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String? tableId,  List<OrderItemDto> items,  String status,  String createdAt,  String? updatedAt,  String? waiterName,  List<String>? cancelLogs)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String? tableId,  List<OrderItemDto> items,  String status,  String createdAt,  String? updatedAt,  String? waiterName,  List<String>? cancelLogs, @JsonKey(name: 'customer_payment_intent')  String? customerPaymentIntent)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _OrderDto() when $default != null:
-return $default(_that.id,_that.tableId,_that.items,_that.status,_that.createdAt,_that.updatedAt,_that.waiterName,_that.cancelLogs);case _:
+return $default(_that.id,_that.tableId,_that.items,_that.status,_that.createdAt,_that.updatedAt,_that.waiterName,_that.cancelLogs,_that.customerPaymentIntent);case _:
   return orElse();
 
 }
@@ -1037,10 +1038,10 @@ return $default(_that.id,_that.tableId,_that.items,_that.status,_that.createdAt,
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String? tableId,  List<OrderItemDto> items,  String status,  String createdAt,  String? updatedAt,  String? waiterName,  List<String>? cancelLogs)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String? tableId,  List<OrderItemDto> items,  String status,  String createdAt,  String? updatedAt,  String? waiterName,  List<String>? cancelLogs, @JsonKey(name: 'customer_payment_intent')  String? customerPaymentIntent)  $default,) {final _that = this;
 switch (_that) {
 case _OrderDto():
-return $default(_that.id,_that.tableId,_that.items,_that.status,_that.createdAt,_that.updatedAt,_that.waiterName,_that.cancelLogs);case _:
+return $default(_that.id,_that.tableId,_that.items,_that.status,_that.createdAt,_that.updatedAt,_that.waiterName,_that.cancelLogs,_that.customerPaymentIntent);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1057,10 +1058,10 @@ return $default(_that.id,_that.tableId,_that.items,_that.status,_that.createdAt,
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String? tableId,  List<OrderItemDto> items,  String status,  String createdAt,  String? updatedAt,  String? waiterName,  List<String>? cancelLogs)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String? tableId,  List<OrderItemDto> items,  String status,  String createdAt,  String? updatedAt,  String? waiterName,  List<String>? cancelLogs, @JsonKey(name: 'customer_payment_intent')  String? customerPaymentIntent)?  $default,) {final _that = this;
 switch (_that) {
 case _OrderDto() when $default != null:
-return $default(_that.id,_that.tableId,_that.items,_that.status,_that.createdAt,_that.updatedAt,_that.waiterName,_that.cancelLogs);case _:
+return $default(_that.id,_that.tableId,_that.items,_that.status,_that.createdAt,_that.updatedAt,_that.waiterName,_that.cancelLogs,_that.customerPaymentIntent);case _:
   return null;
 
 }
@@ -1072,7 +1073,7 @@ return $default(_that.id,_that.tableId,_that.items,_that.status,_that.createdAt,
 @JsonSerializable()
 
 class _OrderDto implements OrderDto {
-  const _OrderDto({required this.id, this.tableId, required final  List<OrderItemDto> items, required this.status, required this.createdAt, this.updatedAt, this.waiterName, final  List<String>? cancelLogs = const []}): _items = items,_cancelLogs = cancelLogs;
+  const _OrderDto({required this.id, this.tableId, required final  List<OrderItemDto> items, required this.status, required this.createdAt, this.updatedAt, this.waiterName, final  List<String>? cancelLogs = const [], @JsonKey(name: 'customer_payment_intent') this.customerPaymentIntent}): _items = items,_cancelLogs = cancelLogs;
   factory _OrderDto.fromJson(Map<String, dynamic> json) => _$OrderDtoFromJson(json);
 
 @override final  String id;
@@ -1097,6 +1098,7 @@ class _OrderDto implements OrderDto {
   return EqualUnmodifiableListView(value);
 }
 
+@override@JsonKey(name: 'customer_payment_intent') final  String? customerPaymentIntent;
 
 /// Create a copy of OrderDto
 /// with the given fields replaced by the non-null parameter values.
@@ -1111,16 +1113,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OrderDto&&(identical(other.id, id) || other.id == id)&&(identical(other.tableId, tableId) || other.tableId == tableId)&&const DeepCollectionEquality().equals(other._items, _items)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.waiterName, waiterName) || other.waiterName == waiterName)&&const DeepCollectionEquality().equals(other._cancelLogs, _cancelLogs));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OrderDto&&(identical(other.id, id) || other.id == id)&&(identical(other.tableId, tableId) || other.tableId == tableId)&&const DeepCollectionEquality().equals(other._items, _items)&&(identical(other.status, status) || other.status == status)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.waiterName, waiterName) || other.waiterName == waiterName)&&const DeepCollectionEquality().equals(other._cancelLogs, _cancelLogs)&&(identical(other.customerPaymentIntent, customerPaymentIntent) || other.customerPaymentIntent == customerPaymentIntent));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,tableId,const DeepCollectionEquality().hash(_items),status,createdAt,updatedAt,waiterName,const DeepCollectionEquality().hash(_cancelLogs));
+int get hashCode => Object.hash(runtimeType,id,tableId,const DeepCollectionEquality().hash(_items),status,createdAt,updatedAt,waiterName,const DeepCollectionEquality().hash(_cancelLogs),customerPaymentIntent);
 
 @override
 String toString() {
-  return 'OrderDto(id: $id, tableId: $tableId, items: $items, status: $status, createdAt: $createdAt, updatedAt: $updatedAt, waiterName: $waiterName, cancelLogs: $cancelLogs)';
+  return 'OrderDto(id: $id, tableId: $tableId, items: $items, status: $status, createdAt: $createdAt, updatedAt: $updatedAt, waiterName: $waiterName, cancelLogs: $cancelLogs, customerPaymentIntent: $customerPaymentIntent)';
 }
 
 
@@ -1131,7 +1133,7 @@ abstract mixin class _$OrderDtoCopyWith<$Res> implements $OrderDtoCopyWith<$Res>
   factory _$OrderDtoCopyWith(_OrderDto value, $Res Function(_OrderDto) _then) = __$OrderDtoCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String? tableId, List<OrderItemDto> items, String status, String createdAt, String? updatedAt, String? waiterName, List<String>? cancelLogs
+ String id, String? tableId, List<OrderItemDto> items, String status, String createdAt, String? updatedAt, String? waiterName, List<String>? cancelLogs,@JsonKey(name: 'customer_payment_intent') String? customerPaymentIntent
 });
 
 
@@ -1148,7 +1150,7 @@ class __$OrderDtoCopyWithImpl<$Res>
 
 /// Create a copy of OrderDto
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? tableId = freezed,Object? items = null,Object? status = null,Object? createdAt = null,Object? updatedAt = freezed,Object? waiterName = freezed,Object? cancelLogs = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? tableId = freezed,Object? items = null,Object? status = null,Object? createdAt = null,Object? updatedAt = freezed,Object? waiterName = freezed,Object? cancelLogs = freezed,Object? customerPaymentIntent = freezed,}) {
   return _then(_OrderDto(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,tableId: freezed == tableId ? _self.tableId : tableId // ignore: cast_nullable_to_non_nullable
@@ -1158,7 +1160,8 @@ as String,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: 
 as String,updatedAt: freezed == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable
 as String?,waiterName: freezed == waiterName ? _self.waiterName : waiterName // ignore: cast_nullable_to_non_nullable
 as String?,cancelLogs: freezed == cancelLogs ? _self._cancelLogs : cancelLogs // ignore: cast_nullable_to_non_nullable
-as List<String>?,
+as List<String>?,customerPaymentIntent: freezed == customerPaymentIntent ? _self.customerPaymentIntent : customerPaymentIntent // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 

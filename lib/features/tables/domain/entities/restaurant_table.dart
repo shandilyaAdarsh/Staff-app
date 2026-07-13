@@ -49,6 +49,7 @@ class RestaurantTable extends Equatable {
   final List<String> mergedTableIds;
   final String? floorId;
   final String? floorName;
+  final String? customerPaymentIntent;
 
   const RestaurantTable({
     required this.id,
@@ -60,10 +61,12 @@ class RestaurantTable extends Equatable {
     this.mergedTableIds = const [],
     this.floorId,
     this.floorName,
+    this.customerPaymentIntent,
   });
 
   bool get canAcceptGuests => status == TableStatus.available || status == TableStatus.cleaning;
   bool get isMerged => mergedTableIds.isNotEmpty;
+  bool get isPaymentRequested => customerPaymentIntent != null;
 
   RestaurantTable updateStatus(TableStatus newStatus, {String? orderId}) {
     return RestaurantTable(
@@ -76,6 +79,7 @@ class RestaurantTable extends Equatable {
       mergedTableIds: mergedTableIds,
       floorId: floorId,
       floorName: floorName,
+      customerPaymentIntent: customerPaymentIntent,
     );
   }
 
@@ -89,6 +93,7 @@ class RestaurantTable extends Equatable {
     List<String>? mergedTableIds,
     String? floorId,
     String? floorName,
+    String? customerPaymentIntent,
   }) {
     return RestaurantTable(
       id: id ?? this.id,
@@ -100,9 +105,10 @@ class RestaurantTable extends Equatable {
       mergedTableIds: mergedTableIds ?? this.mergedTableIds,
       floorId: floorId ?? this.floorId,
       floorName: floorName ?? this.floorName,
+      customerPaymentIntent: customerPaymentIntent ?? this.customerPaymentIntent,
     );
   }
 
   @override
-  List<Object?> get props => [id, label, capacity, status, activeOrderId, occupiedSeats, mergedTableIds, floorId, floorName];
+  List<Object?> get props => [id, label, capacity, status, activeOrderId, occupiedSeats, mergedTableIds, floorId, floorName, customerPaymentIntent];
 }

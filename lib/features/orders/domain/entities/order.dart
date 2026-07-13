@@ -21,6 +21,7 @@ class Order extends Equatable {
   final DateTime updatedAt;
   final String waiterName;
   final List<String> cancelLogs;
+  final String? customerPaymentIntent;
 
   const Order({
     required this.id,
@@ -31,7 +32,13 @@ class Order extends Equatable {
     required this.updatedAt,
     this.waiterName = 'John Doe',
     this.cancelLogs = const [],
+    this.customerPaymentIntent,
   });
+
+  bool get isPaymentRequested =>
+      customerPaymentIntent != null &&
+      status != OrderStatus.completed &&
+      status != OrderStatus.cancelled;
 
   Money get totalPrice {
     var total = const Money(amountInCents: 0);
@@ -52,6 +59,7 @@ class Order extends Equatable {
     DateTime? updatedAt,
     String? waiterName,
     List<String>? cancelLogs,
+    String? customerPaymentIntent,
   }) {
     return Order(
       id: id ?? this.id,
@@ -62,9 +70,10 @@ class Order extends Equatable {
       updatedAt: updatedAt ?? this.updatedAt,
       waiterName: waiterName ?? this.waiterName,
       cancelLogs: cancelLogs ?? this.cancelLogs,
+      customerPaymentIntent: customerPaymentIntent ?? this.customerPaymentIntent,
     );
   }
 
   @override
-  List<Object?> get props => [id, tableId, items, status, createdAt, updatedAt, waiterName, cancelLogs];
+  List<Object?> get props => [id, tableId, items, status, createdAt, updatedAt, waiterName, cancelLogs, customerPaymentIntent];
 }
