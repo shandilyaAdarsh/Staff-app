@@ -294,6 +294,8 @@ class _TableGridScreenState extends ConsumerState<TableGridScreen> {
       return _buildVacantCard(table, isDark);
     } else if (status == TableStatus.needsAttention) {
       return _buildCallingCard(table, isDark, activeOrders);
+    } else if (table.isPaymentRequested) {
+      return _buildBillRequestedCard(table, isDark, activeOrders);
     } else if (status == TableStatus.reserved) {
       return _buildBillRequestedCard(table, isDark, activeOrders);
     } else {
@@ -599,7 +601,7 @@ class _TableGridScreenState extends ConsumerState<TableGridScreen> {
                       const Icon(Icons.receipt_long_rounded, size: 14, color: Colors.white),
                       const SizedBox(width: 6),
                       Text(
-                        'Bill Req.',
+                        table.isPaymentRequested ? '${table.customerPaymentIntent?.toUpperCase()} Req.' : 'Bill Req.',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,

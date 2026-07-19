@@ -53,6 +53,7 @@ abstract class OrderDto with _$OrderDto {
     String? updatedAt,
     String? waiterName,
     @Default([]) List<String>? cancelLogs,
+    @JsonKey(name: 'customer_payment_intent') String? customerPaymentIntent,
   }) = _OrderDto;
 
   factory OrderDto.fromJson(Map<String, dynamic> json) => _$OrderDtoFromJson(json);
