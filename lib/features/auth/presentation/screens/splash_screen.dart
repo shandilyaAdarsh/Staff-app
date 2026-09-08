@@ -106,10 +106,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
       context.go('/welcome');
     } else if (authState.loggedInStaff == null) {
       context.go('/login');
-    } else if (!authState.isShiftStarted) {
-      context.go('/shift-start');
     } else {
-      context.go('/tables');
+      context.go('/notifications');
     }
   }
 

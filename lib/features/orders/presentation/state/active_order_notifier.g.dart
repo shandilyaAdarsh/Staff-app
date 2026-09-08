@@ -7,7 +7,7 @@ part of 'active_order_notifier.dart';
 // **************************************************************************
 
 String _$activeOrderNotifierHash() =>
-    r'90dcffbb0b8c47696d47e76bd121d93a3a00da43';
+    r'a74bebaa33cbab474fa7a343ad27dd3db99f04dd';
 
 /// Copied from Dart SDK
 class _SystemHash {

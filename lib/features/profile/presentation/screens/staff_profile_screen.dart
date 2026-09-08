@@ -37,13 +37,6 @@ class _StaffProfileScreenState extends ConsumerState<StaffProfileScreen> {
         ),
         backgroundColor: surfaceColor,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.tune_rounded),
-            tooltip: 'Settings',
-            onPressed: () => context.push('/settings'),
-          ),
-        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Divider(height: 1, color: borderColor),
@@ -94,74 +87,120 @@ class _StaffProfileScreenState extends ConsumerState<StaffProfileScreen> {
                     _buildHeaderCard(staff, authState, surfaceColor, borderColor, textPrimary, textSecondary),
                     const SizedBox(height: 24),
 
-                    _buildSectionHeader('PERSONAL INFORMATION', textSecondary),
-                    _buildCard(
+                    _buildSafeSection(
+                      'CONTACT INFORMATION',
                       surfaceColor,
                       borderColor,
+                      textSecondary,
                       [
-                        _buildRow('Full Name', textPrimary,
-                            value: _getFullName(staff)),
-                        _divider(borderColor),
-                        _buildRow('Age', textPrimary, value: staff.age?.toString() ?? 'N/A'),
-                        _divider(borderColor),
-                        _buildRow('Gender', textPrimary, value: staff.gender ?? 'N/A'),
-                        _divider(borderColor),
-                        _buildRow('DOB', textPrimary,
-                            value: staff.dob != null ? staff.dob!.toIso8601String().split('T').first : 'N/A'),
+                        _buildRow('Mobile Number', textPrimary, rawValue: staff.mobileNumber),
+                        _buildRow('Email', textPrimary, rawValue: staff.email),
                       ],
                     ),
-                    const SizedBox(height: 24),
-
-                    _buildSectionHeader('CONTACT INFORMATION', textSecondary),
-                    _buildCard(
+                    _buildSafeSection(
+                      'EMPLOYMENT INFORMATION',
                       surfaceColor,
                       borderColor,
+                      textSecondary,
                       [
-                        _buildRow('Mobile Number', textPrimary, value: _formatValue(staff.mobileNumber)),
-                        _divider(borderColor),
-                        _buildRow('Email', textPrimary, value: _formatValue(staff.email)),
-                        _divider(borderColor),
-                        _buildRow('Address', textPrimary, value: _formatValue(staff.address)),
-                        _divider(borderColor),
-                        _buildRow('Emergency Contact', textPrimary, value: _formatValue(staff.emergencyContactName ?? staff.emergencyContact)),
-                        _divider(borderColor),
-                        _buildRow('Emergency Number', textPrimary, value: _formatValue(staff.emergencyContactNumber)),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    _buildSectionHeader('EMPLOYMENT INFORMATION', textSecondary),
-                    _buildCard(
-                      surfaceColor,
-                      borderColor,
-                      [
-                        _buildRow('Employee ID', textPrimary, value: _formatValue(staff.employeeId)),
-                        _divider(borderColor),
-                        _buildRow('Role', textPrimary, value: _formatRole(staff.role)),
-                        _divider(borderColor),
-                        _buildRow('Restaurant', textPrimary, value: authState.selectedOrg?.name ?? 'Orderlyy'),
-                        _divider(borderColor),
-                        _buildRow('Branch', textPrimary, value: staff.branch ?? authState.selectedBranch?.name ?? 'N/A'),
-                        if (staff.section != null && staff.section!.isNotEmpty) ...[
-                          _divider(borderColor),
-                          _buildRow('Assigned Section', textPrimary, value: staff.section!),
-                        ],
-                        _divider(borderColor),
-                        _buildRow('Department', textPrimary, value: _formatValue(staff.department)),
-                        _divider(borderColor),
-                        _buildRow('Joining Date', textPrimary,
-                            value: staff.joiningDate != null
-                                ? '${staff.joiningDate!.year}-${staff.joiningDate!.month.toString().padLeft(2, '0')}-${staff.joiningDate!.day.toString().padLeft(2, '0')}'
-                                : 'N/A'),
-                        _divider(borderColor),
+                        _buildRow('Employee ID', textPrimary, rawValue: staff.employeeId),
+                        _buildRow('Role', textPrimary, rawValue: _formatRole(staff.role)),
+                        _buildRow('Branch', textPrimary, rawValue: staff.branch ?? authState.selectedBranch?.name),
                         _buildRow('Status', textPrimary,
-                            value: staff.employmentStatus ?? 'Active', valueColor: AppColors.success),
+                            rawValue: staff.employmentStatus ?? 'Active', valueColor: AppColors.success),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ── Session Actions ──────────────────────────────────
+                    _buildSectionHeader('SESSION', textSecondary),
+                    _buildCard(
+                      surfaceColor,
+                      borderColor,
+                      [
+                        InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () {
+                            ref.read(authNotifierProvider.notifier).lockSession();
+                            context.go('/login');
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.lock_rounded, color: AppColors.primary, size: 20),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Lock Session',
+                                  style: AppTextStyles.bodyMedium.copyWith(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const Spacer(),
+                                const Icon(Icons.chevron_right_rounded, color: AppColors.primary, size: 20),
+                              ],
+                            ),
+                          ),
+                        ),
+                        _divider(borderColor),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () => _confirmLogout(context),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Log Out',
+                                  style: AppTextStyles.bodyMedium.copyWith(
+                                    color: AppColors.error,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const Spacer(),
+                                const Icon(Icons.chevron_right_rounded, color: AppColors.error, size: 20),
+                              ],
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 32),
                   ],
                 ),
     );
+  }
+
+  Future<void> _confirmLogout(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Log Out'),
+        content: const Text(
+          'Are you sure you want to log out? Your session will be ended.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Log Out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      await ref.read(authNotifierProvider.notifier).logout();
+      if (context.mounted) context.go('/login');
+    }
   }
 
   Widget _buildSectionHeader(String title, Color color) {
@@ -190,7 +229,22 @@ class _StaffProfileScreenState extends ConsumerState<StaffProfileScreen> {
     );
   }
 
-  Widget _buildRow(String label, Color textPrimary, {String? value, Color? valueColor}) {
+  bool _hasValue(dynamic value) {
+    if (value == null) return false;
+    final str = value.toString().trim();
+    if (str.isEmpty ||
+        str.toLowerCase() == 'n/a' ||
+        str.toLowerCase() == 'na' ||
+        str.toLowerCase() == 'null' ||
+        str.toLowerCase() == 'undefined') {
+      return false;
+    }
+    return true;
+  }
+
+  Widget? _buildRow(String label, Color textPrimary, {dynamic rawValue, Color? valueColor}) {
+    if (!_hasValue(rawValue)) return null;
+    final value = rawValue.toString().trim();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
@@ -203,16 +257,43 @@ class _StaffProfileScreenState extends ConsumerState<StaffProfileScreen> {
               fontWeight: FontWeight.w500,
             ),
           ),
-          if (value != null)
-            Text(
-              value,
-              style: AppTextStyles.bodyMedium.copyWith(
-                fontWeight: FontWeight.bold,
-                color: valueColor ?? textPrimary,
-              ),
+          Text(
+            value,
+            style: AppTextStyles.bodyMedium.copyWith(
+              fontWeight: FontWeight.bold,
+              color: valueColor ?? textPrimary,
             ),
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSafeSection(
+    String title,
+    Color surfaceColor,
+    Color borderColor,
+    Color textSecondary,
+    List<Widget?> rows,
+  ) {
+    final validRows = rows.whereType<Widget>().toList();
+    if (validRows.isEmpty) return const SizedBox.shrink();
+
+    final children = <Widget>[];
+    for (int i = 0; i < validRows.length; i++) {
+      children.add(validRows[i]);
+      if (i < validRows.length - 1) {
+        children.add(_divider(borderColor));
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildSectionHeader(title, textSecondary),
+        _buildCard(surfaceColor, borderColor, children),
+        const SizedBox(height: 24),
+      ],
     );
   }
 
@@ -256,7 +337,7 @@ class _StaffProfileScreenState extends ConsumerState<StaffProfileScreen> {
             child: staff.profilePhoto == null || staff.profilePhoto!.isEmpty
                 ? Text(
                     fullName.isNotEmpty ? fullName[0].toUpperCase() : 'S',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary,
@@ -306,14 +387,9 @@ class _StaffProfileScreenState extends ConsumerState<StaffProfileScreen> {
     return 'Staff Member';
   }
 
-  String _formatValue(String? val) {
-    if (val == null || val.trim().isEmpty) return 'N/A';
-    return val;
-  }
-
   String _formatRole(dynamic role) {
     if (role == null) return 'Staff';
-    final roleName = role.name.toString();
+    final roleName = role.toString().split('.').last;
     switch (roleName.toLowerCase()) {
       case 'waiter':
         return 'Waiter / Server';

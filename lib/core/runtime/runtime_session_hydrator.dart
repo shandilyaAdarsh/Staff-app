@@ -71,11 +71,18 @@ class RuntimeSessionHydrator {
     debugPrint('[RuntimeSessionHydrator] Branch: $branchId, Staff: $staffId');
 
     try {
-      // Step 1: Exchange platform session for a short-lived runtime token
+      // Step 1: Exchange platform session for a short-lived runtime token.
+      // This is a HARD requirement — runtime_token must be persisted before
+      // any realtime connection or authenticated API call can proceed.
       final exchangeSuccess = await _exchangeRuntimeToken(branchId);
       if (!exchangeSuccess) {
-        debugPrint('[RuntimeSessionHydrator] Platform token exchange bypassed — proceeding with local runtime session');
+        debugPrint('[RuntimeSessionHydrator] runtime_token exchange failed. Cannot start session.');
+        return HydrationResult.failure(
+          'Unable to obtain a runtime token. Please ensure the device is registered and try again.',
+        );
       }
+      debugPrint('[RuntimeSessionHydrator] runtime_token exchange succeeded.');
+
 
       // Step 2: Fetch authoritative auth context
       final authContext = await _fetchAuthContext(staffId);
@@ -188,9 +195,15 @@ class RuntimeSessionHydrator {
         return true;
       }
     } catch (e) {
-      debugPrint(
-        '[RuntimeSessionHydrator] Failed to exchange runtime token: $e',
-      );
+      if (e is DioException && e.response != null) {
+        debugPrint(
+          '[RuntimeSessionHydrator] Failed to exchange runtime token: ${e.response?.statusCode} - ${e.response?.data}',
+        );
+      } else {
+        debugPrint(
+          '[RuntimeSessionHydrator] Failed to exchange runtime token: $e',
+        );
+      }
     }
     return false;
   }

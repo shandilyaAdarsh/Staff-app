@@ -11,45 +11,8 @@ class NotificationsNotifier extends StateNotifier<List<AppNotification>> {
   }
 
   void _populateInitialMockNotifications() {
-    final now = DateTime.now();
-    state = [
-      AppNotification(
-        id: 'notif_1',
-        title: 'Table 12: Mains Ready',
-        message: '2x Cheeseburger (Grill) is ready for pickup.',
-        severity: NotificationSeverity.urgent,
-        category: NotificationCategory.kitchenReady,
-        timestamp: now.subtract(const Duration(minutes: 2)),
-        metadata: {'tableId': '12', 'orderId': 'ord_12'},
-      ),
-      AppNotification(
-        id: 'notif_2',
-        title: 'Table 5: Bill Request',
-        message: 'Guest requested receipt payment (Mastercard).',
-        severity: NotificationSeverity.urgent,
-        category: NotificationCategory.waiterCall,
-        timestamp: now.subtract(const Duration(minutes: 8)),
-        metadata: {'tableId': '5'},
-      ),
-      AppNotification(
-        id: 'notif_3',
-        title: 'SLA Breach Warning',
-        message: 'Table 3 Main items in Grill station exceed 15 mins cooking SLA.',
-        severity: NotificationSeverity.critical,
-        category: NotificationCategory.slaBreach,
-        timestamp: now.subtract(const Duration(minutes: 10)),
-        metadata: {'tableId': '3'},
-      ),
-      AppNotification(
-        id: 'notif_4',
-        title: 'Network Reconnected',
-        message: 'Sync manager restored local offline cache.',
-        severity: NotificationSeverity.info,
-        category: NotificationCategory.reconnectWarning,
-        timestamp: now.subtract(const Duration(minutes: 15)),
-        isRead: true,
-      ),
-    ];
+    // Start with an empty list instead of mock data.
+    state = [];
   }
 
   // Deduplication logic using temporary buffers

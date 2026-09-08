@@ -50,6 +50,7 @@ class RestaurantTable extends Equatable {
   final String? floorId;
   final String? floorName;
   final String? customerPaymentIntent;
+  final String? assignedStaffId;
 
   const RestaurantTable({
     required this.id,
@@ -62,6 +63,7 @@ class RestaurantTable extends Equatable {
     this.floorId,
     this.floorName,
     this.customerPaymentIntent,
+    this.assignedStaffId,
   });
 
   bool get canAcceptGuests => status == TableStatus.available || status == TableStatus.cleaning;
@@ -80,6 +82,7 @@ class RestaurantTable extends Equatable {
       floorId: floorId,
       floorName: floorName,
       customerPaymentIntent: customerPaymentIntent,
+      assignedStaffId: assignedStaffId,
     );
   }
 
@@ -94,6 +97,7 @@ class RestaurantTable extends Equatable {
     String? floorId,
     String? floorName,
     String? customerPaymentIntent,
+    String? assignedStaffId,
   }) {
     return RestaurantTable(
       id: id ?? this.id,
@@ -106,9 +110,22 @@ class RestaurantTable extends Equatable {
       floorId: floorId ?? this.floorId,
       floorName: floorName ?? this.floorName,
       customerPaymentIntent: customerPaymentIntent ?? this.customerPaymentIntent,
+      assignedStaffId: assignedStaffId ?? this.assignedStaffId,
     );
   }
 
   @override
-  List<Object?> get props => [id, label, capacity, status, activeOrderId, occupiedSeats, mergedTableIds, floorId, floorName, customerPaymentIntent];
+  List<Object?> get props => [
+        id,
+        label,
+        capacity,
+        status,
+        activeOrderId,
+        occupiedSeats,
+        mergedTableIds,
+        floorId,
+        floorName,
+        customerPaymentIntent,
+        assignedStaffId,
+      ];
 }

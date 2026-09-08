@@ -6,5 +6,5 @@ abstract class TablesRemoteDatasource {
   Future<TableDto> updateTableStatus(String id, String status, {String? orderId});
   Stream<List<TableDto>> watchTables();
   Future<void> mergeTables(List<String> sourceTableIds, String targetTableId);
-  Future<void> splitTable(String tableId, List<Map<String, dynamic>> splitPartitions);
+
 }

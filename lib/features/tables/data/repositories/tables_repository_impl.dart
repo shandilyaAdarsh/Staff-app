@@ -39,11 +39,7 @@ class TablesRepositoryImpl implements TablesRepository {
       await remote.mergeTables(sourceTableIds, targetTableId);
     });
 
-    offlineQueue.registerHandler('splitTable', (payload) async {
-      final tableId = payload['tableId'] as String;
-      final splitPartitions = List<Map<String, dynamic>>.from(payload['splitPartitions'] as List);
-      await remote.splitTable(tableId, splitPartitions);
-    });
+
   }
 
   @override
@@ -200,34 +196,7 @@ class TablesRepositoryImpl implements TablesRepository {
     }
   }
 
-  @override
-  Future<void> splitTable(String tableId, List<Map<String, dynamic>> splitPartitions) async {
-    final localItems = await local.getCachedTables();
-    final index = localItems.indexWhere((t) => t.id == tableId);
-    if (index != -1) {
-      final seatDtos = splitPartitions.map<GuestSeatDto>((p) => GuestSeatDto.fromJson(p)).toList();
-      final updated = localItems[index].copyWith(
-        occupiedSeats: seatDtos,
-        mergedTableIds: [],
-      );
-      await local.cacheTable(updated);
-    }
 
-    final payload = {
-      'tableId': tableId,
-      'splitPartitions': splitPartitions,
-    };
-
-    if (await networkInfo.isConnected) {
-      try {
-        await remote.splitTable(tableId, splitPartitions);
-      } catch (e) {
-        await offlineQueue.queueWrite(action: 'splitTable', payload: payload);
-      }
-    } else {
-      await offlineQueue.queueWrite(action: 'splitTable', payload: payload);
-    }
-  }
 
   @override
   Future<void> applyRemoteTableUpdate(RestaurantTable table) async {

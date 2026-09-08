@@ -7,47 +7,24 @@ import 'package:google_fonts/google_fonts.dart';
 import '../core/theme/app_colors.dart';
 import '../features/tables/presentation/screens/table_grid_screen.dart';
 import '../features/tables/presentation/screens/table_detail_screen.dart';
-import '../features/orders/presentation/screens/order_editor_screen.dart';
-import '../features/billing/presentation/screens/billing_payment_screen.dart';
-import '../features/kitchen/presentation/screens/kitchen_kds_screen.dart';
 import '../features/auth/presentation/state/auth_notifier.dart';
 import '../features/auth/presentation/state/auth_state.dart';
 import '../features/auth/presentation/screens/splash_screen.dart';
 import '../features/auth/presentation/screens/welcome_screen.dart';
 import '../features/auth/presentation/screens/device_registration_screen.dart';
 import '../features/auth/presentation/screens/staff_login_screen.dart';
-import '../features/auth/presentation/screens/shift_start_screen.dart';
+
 import '../features/auth/presentation/screens/session_lock_screen.dart';
 import '../core/storage/device_context_store.dart';
-import '../features/dashboard/presentation/screens/operational_dashboard_screen.dart';
-import '../features/orders/presentation/screens/active_orders_feed_screen.dart';
-import '../features/orders/presentation/screens/order_details_screen.dart';
-import '../features/orders/presentation/screens/item_level_kitchen_status_screen.dart';
-import '../features/tables/presentation/screens/table_split_screen.dart';
+
 import '../features/waiter_calls/presentation/screens/waiter_call_feed_screen.dart';
 import '../features/waiter_calls/presentation/screens/waiter_call_details_screen.dart';
 import '../features/notifications/presentation/screens/notification_center_screen.dart';
-import '../features/kitchen/presentation/screens/ready_orders_feed_screen.dart';
-import '../features/kitchen/presentation/screens/delayed_orders_feed_screen.dart';
-import '../features/billing/presentation/screens/payment_pending_feed_screen.dart';
-import '../features/billing/presentation/screens/receipt_preview_screen.dart';
 import '../features/notifications/presentation/state/notifications_provider.dart';
 import '../features/waiter_calls/presentation/state/waiter_calls_providers.dart';
 // Volume II — Screen imports
-import '../features/shift/presentation/screens/shift_dashboard_screen.dart';
-import '../features/shift/presentation/screens/shift_close_screen.dart';
-import '../features/staff/presentation/screens/staff_presence_screen.dart';
-import '../features/realtime/presentation/screens/realtime_status_screen.dart';
-import '../features/realtime/presentation/screens/pending_sync_screen.dart';
-import '../features/realtime/presentation/screens/operational_recovery_screen.dart';
-import '../features/profile/presentation/screens/developer_dashboard_screen.dart';
 import '../features/profile/presentation/screens/staff_profile_screen.dart';
-import '../features/profile/presentation/screens/profile_setup_screen.dart';
-import '../features/profile/presentation/screens/developer_settings_screen.dart';
-import '../features/manager/presentation/screens/floor_analytics_screen.dart';
-import '../features/manager/presentation/screens/staff_performance_screen.dart';
-import '../features/manager/presentation/screens/operational_alerts_screen.dart';
-import '../features/profile/presentation/screens/staff_settings_screen.dart';
+import '../features/notifications/presentation/screens/combined_notifications_screen.dart';
 import '../features/realtime/presentation/state/realtime_providers.dart';
 import '../features/realtime/domain/entities/realtime_state_model.dart';
 import '../core/widgets/realtime_banner.dart';
@@ -151,44 +128,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         return null;
       }
 
-      if (!authState.isShiftStarted) {
-        if (loc != '/shift-start' &&
-            loc != '/login' &&
-            loc != '/device-registration') {
-          return '/shift-start';
-        }
-        return null;
-      }
+      // Removed the shift-start redirect since the screen is removed
+      // and login auto-starts the shift.
 
       // If logged in, shift started, operational, and not locked...
 
-      // Enforce profile completion — check both DB flag and persistent local cache.
-      // The local cache (SharedPreferences) is keyed per staff ID and survives
-      // logout, lock, app kill, and hot restart.
-      final staff = authState.loggedInStaff;
-      final isProfileDone = staff != null &&
-          (staff.profileCompleted ||
-           deviceStore.isProfileCompletedFor(staff.id));
-      if (staff != null && !isProfileDone) {
-        if (loc != '/profile-setup') {
-          return '/profile-setup';
-        }
-        return null;
-      }
-
-      // If profile is completed, ensure they can't access profile-setup manually
-      if (loc == '/profile-setup' && isProfileDone) {
-        return '/tables';
-      }
+      // Profile setup / onboarding wizard bypassed for this phase.
 
       // Block access to auth configuration screens
       final isAuthScreen =
           loc == '/device-registration' ||
-          loc == '/login' ||
-          loc == '/shift-start';
+          loc == '/login';
 
       if (isAuthScreen) {
-        return '/tables';
+        return '/notifications';
       }
 
       // Allow access to the target route
@@ -215,60 +168,32 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'login',
         builder: (context, state) => const StaffLoginScreen(),
       ),
-      GoRoute(
-        path: '/shift-start',
-        name: 'shift-start',
-        builder: (context, state) => const ShiftStartScreen(),
-      ),
+      // Shift Start Route Removed
       GoRoute(
         path: '/lock',
         name: 'lock',
         builder: (context, state) => const SessionLockScreen(),
       ),
-      GoRoute(
-        path: '/profile-setup',
-        name: 'profile-setup',
-        builder: (context, state) => const ProfileSetupScreen(),
-      ),
+      // Profile Setup Route Removed
       ShellRoute(
         builder: (context, state, child) {
           return NavigationShellLayout(child: child);
         },
         routes: [
           GoRoute(
+            path: '/notifications',
+            name: 'notifications',
+            builder: (context, state) => const CombinedNotificationsScreen(),
+          ),
+          GoRoute(
             path: '/tables',
             name: 'tables',
             builder: (context, state) => const TableGridScreen(),
           ),
           GoRoute(
-            path: '/orders-feed',
-            name: 'orders-feed',
-            builder: (context, state) => const ActiveOrdersFeedScreen(),
-          ),
-          GoRoute(
-            path: '/kds',
-            name: 'kds',
-            builder: (context, state) => const KitchenKdsScreen(),
-          ),
-          GoRoute(
-            path: '/dashboard',
-            name: 'dashboard',
-            builder: (context, state) => const OperationalDashboardScreen(),
-          ),
-          GoRoute(
             path: '/profile',
             name: 'profile',
             builder: (context, state) => const StaffProfileScreen(),
-          ),
-          GoRoute(
-            path: '/developer',
-            name: 'developer',
-            builder: (context, state) => const DeveloperDashboardScreen(),
-          ),
-          GoRoute(
-            path: '/settings/developer',
-            name: 'settings-developer',
-            builder: (context, state) => const DeveloperSettingsScreen(),
           ),
         ],
       ),
@@ -280,48 +205,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           return TableDetailScreen(tableId: id);
         },
       ),
-      GoRoute(
-        path: '/tables/:id/edit',
-        name: 'order-editor',
-        builder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return OrderEditorScreen(tableId: id);
-        },
-      ),
-      GoRoute(
-        path: '/tables/:id/pay',
-        name: 'billing-payment',
-        builder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return BillingPaymentScreen(tableId: id);
-        },
-      ),
-      GoRoute(
-        path: '/orders/:id/details',
-        name: 'order-details',
-        builder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return OrderDetailsScreen(orderId: id);
-        },
-      ),
-      GoRoute(
-        path: '/tables/:id/split',
-        name: 'table-split',
-        builder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return TableSplitScreen(tableId: id);
-        },
-      ),
-      GoRoute(
-        path: '/kitchen/status',
-        name: 'kitchen-status',
-        builder: (context, state) => const ItemLevelKitchenStatusScreen(),
-      ),
-      GoRoute(
-        path: '/waiter-calls',
-        name: 'waiter-calls',
-        builder: (context, state) => const WaiterCallFeedScreen(),
-      ),
+      // Profile is now inside ShellRoute
       GoRoute(
         path: '/waiter-calls/:id',
         name: 'waiter-call-details',
@@ -329,90 +213,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           final id = state.pathParameters['id']!;
           return WaiterCallDetailsScreen(callId: id);
         },
-      ),
-      GoRoute(
-        path: '/notifications',
-        name: 'notifications',
-        builder: (context, state) => const NotificationCenterScreen(),
-      ),
-      GoRoute(
-        path: '/kitchen/ready',
-        name: 'kitchen-ready',
-        builder: (context, state) => const ReadyOrdersFeedScreen(),
-      ),
-      GoRoute(
-        path: '/kitchen/delayed',
-        name: 'kitchen-delayed',
-        builder: (context, state) => const DelayedOrdersFeedScreen(),
-      ),
-      GoRoute(
-        path: '/billing/pending',
-        name: 'billing-pending',
-        builder: (context, state) => const PaymentPendingFeedScreen(),
-      ),
-      GoRoute(
-        path: '/tables/:id/receipt-preview',
-        name: 'receipt-preview',
-        builder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return ReceiptPreviewScreen(tableId: id);
-        },
-      ),
-      // ── Volume II Routes ──────────────────────────────────────────────
-      GoRoute(
-        path: '/shift/dashboard',
-        name: 'shift-dashboard',
-        builder: (context, state) => const ShiftDashboardScreen(),
-      ),
-      GoRoute(
-        path: '/shift/close',
-        name: 'shift-close',
-        builder: (context, state) => const ShiftCloseScreen(),
-      ),
-      GoRoute(
-        path: '/staff/presence',
-        name: 'staff-presence',
-        builder: (context, state) => const StaffPresenceScreen(),
-      ),
-      GoRoute(
-        path: '/realtime/status',
-        name: 'realtime-status',
-        builder: (context, state) => const RealtimeStatusScreen(),
-      ),
-      GoRoute(
-        path: '/realtime/sync-queue',
-        name: 'sync-queue',
-        builder: (context, state) => const PendingSyncScreen(),
-      ),
-      GoRoute(
-        path: '/realtime/recovery',
-        name: 'operational-recovery',
-        builder: (context, state) => const OperationalRecoveryScreen(),
-      ),
-      GoRoute(
-        path: '/diagnostics',
-        name: 'runtime-diagnostics',
-        builder: (context, state) => const DeveloperDashboardScreen(),
-      ),
-      GoRoute(
-        path: '/manager/analytics',
-        name: 'floor-analytics',
-        builder: (context, state) => const FloorAnalyticsScreen(),
-      ),
-      GoRoute(
-        path: '/manager/staff-performance',
-        name: 'staff-performance',
-        builder: (context, state) => const StaffPerformanceScreen(),
-      ),
-      GoRoute(
-        path: '/manager/alerts',
-        name: 'operational-alerts',
-        builder: (context, state) => const OperationalAlertsScreen(),
-      ),
-      GoRoute(
-        path: '/settings',
-        name: 'settings',
-        builder: (context, state) => const StaffSettingsScreen(),
       ),
     ],
   );
@@ -433,18 +233,13 @@ class NavigationShellLayout extends ConsumerWidget {
     final activeCallCount = ref.watch(activeWaiterCallsCountProvider);
     final realtimeState = ref.watch(realtimeStateProvider);
     final authState = ref.watch(authNotifierProvider);
-    const isDark = false; // Forced light mode
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     int selectedIndex = 0;
-    if (location.startsWith('/orders-feed')) {
+    if (location.startsWith('/tables')) {
       selectedIndex = 1;
-    } else if (location.startsWith('/dashboard')) {
+    } else if (location.startsWith('/profile')) {
       selectedIndex = 2;
-    } else if (location.startsWith('/profile') ||
-        location.startsWith('/developer') ||
-        location.startsWith('/settings/developer') ||
-        location.startsWith('/diagnostics')) {
-      selectedIndex = 3;
     }
 
     RealtimeState mapState(RealtimeConnectionState s) {
@@ -462,11 +257,7 @@ class NavigationShellLayout extends ConsumerWidget {
       }
     }
 
-    final isDevRoute =
-        location.startsWith('/developer') ||
-        location.startsWith('/settings/developer');
-    final isProfileRoute = location.startsWith('/profile');
-    final isDev = authState.loggedInStaff?.developerModeEnabled ?? false;
+    // Removed unused route checks
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -505,10 +296,8 @@ class NavigationShellLayout extends ConsumerWidget {
                     _buildNavigationRail(
                       context,
                       selectedIndex,
-                      isDevRoute,
-                      isProfileRoute,
-                      isDev,
                       activeCallCount,
+                      unreadNotifCount,
                       isDark,
                     ),
                     VerticalDivider(
@@ -525,10 +314,8 @@ class NavigationShellLayout extends ConsumerWidget {
               : _buildBottomNavigationBar(
                   context,
                   selectedIndex,
-                  isDevRoute,
-                  isProfileRoute,
-                  isDev,
                   activeCallCount,
+                  unreadNotifCount,
                   isDark,
                 ),
         );
@@ -541,10 +328,8 @@ class NavigationShellLayout extends ConsumerWidget {
   Widget _buildNavigationRail(
     BuildContext context,
     int selectedIndex,
-    bool isDevRoute,
-    bool isProfileRoute,
-    bool isDev,
     int activeCallCount,
+    int unreadNotifCount,
     bool isDark,
   ) {
     return Container(
@@ -554,14 +339,10 @@ class NavigationShellLayout extends ConsumerWidget {
         child: Column(
           children: [
             const SizedBox(height: 16),
-            _buildNavItem(context, Icons.table_restaurant_rounded, 'Tables', selectedIndex == 0, isDark, () => context.go('/tables'), badgeCount: activeCallCount, isRail: true),
-            _buildNavItem(context, Icons.receipt_long_rounded, 'Orders', selectedIndex == 1, isDark, () => context.go('/orders-feed'), isRail: true),
-            _buildNavItem(context, Icons.dashboard_rounded, 'Dashboard', selectedIndex == 2, isDark, () => context.go('/dashboard'), isRail: true),
-            if (isDev)
-              _buildNavItem(context, Icons.terminal_rounded, 'Developer', isDevRoute, isDark, () => context.go('/developer'), isRail: true),
+            _buildNavItem(context, Icons.notifications_rounded, 'Notifications', selectedIndex == 0, isDark, () => context.go('/notifications'), badgeCount: activeCallCount + unreadNotifCount, isRail: true),
+            _buildNavItem(context, Icons.table_restaurant_rounded, 'My Tables', selectedIndex == 1, isDark, () => context.go('/tables'), isRail: true),
+            _buildNavItem(context, Icons.person_rounded, 'Profile', selectedIndex == 2, isDark, () => context.go('/profile'), isRail: true),
             const Spacer(),
-            _buildNavItem(context, Icons.person_rounded, 'Profile', isProfileRoute, isDark, () => context.go('/profile'), isRail: true),
-            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -571,10 +352,8 @@ class NavigationShellLayout extends ConsumerWidget {
   Widget _buildBottomNavigationBar(
     BuildContext context,
     int selectedIndex,
-    bool isDevRoute,
-    bool isProfileRoute,
-    bool isDev,
     int activeCallCount,
+    int unreadNotifCount,
     bool isDark,
   ) {
     return Container(
@@ -600,43 +379,26 @@ class NavigationShellLayout extends ConsumerWidget {
           children: [
             _buildNavItem(
               context,
-              Icons.table_restaurant_rounded,
-              'Tables',
+              Icons.notifications_rounded,
+              'Notifications',
               selectedIndex == 0,
               isDark,
-              () => context.go('/tables'),
-              badgeCount: activeCallCount,
+              () => context.go('/notifications'),
+              badgeCount: activeCallCount + unreadNotifCount,
             ),
             _buildNavItem(
               context,
-              Icons.receipt_long_rounded,
-              'Orders',
+              Icons.table_restaurant_rounded,
+              'My Tables',
               selectedIndex == 1,
               isDark,
-              () => context.go('/orders-feed'),
+              () => context.go('/tables'),
             ),
-            _buildNavItem(
-              context,
-              Icons.dashboard_rounded,
-              'Dashboard',
-              selectedIndex == 2,
-              isDark,
-              () => context.go('/dashboard'),
-            ),
-            if (isDev)
-              _buildNavItem(
-                context,
-                Icons.terminal_rounded,
-                'Developer',
-                isDevRoute,
-                isDark,
-                () => context.go('/developer'),
-              ),
             _buildNavItem(
               context,
               Icons.person_rounded,
               'Profile',
-              isProfileRoute,
+              selectedIndex == 2,
               isDark,
               () => context.go('/profile'),
             ),
@@ -772,268 +534,16 @@ class NavigationShellLayout extends ConsumerWidget {
               // Action Icons
               Row(
                 children: [
-                  // More operational shortcuts via bottom sheet
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.grid_view_rounded, size: 20),
-                    label: Text(
-                      'Quick Access',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark
-                          ? const Color(0xFF334155)
-                          : const Color(0xFFF1F5F9),
-                      foregroundColor: isDark ? Colors.white : Colors.black,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: () => _showQuickAccessSheet(context),
-                  ),
-                  const SizedBox(width: 12),
-                  // Notification center with unread badge
                   IconButton(
-                    icon: unreadNotifCount > 0
-                        ? Badge(
-                            label: Text('$unreadNotifCount'),
-                            backgroundColor: AppColors.error,
-                            child: const Icon(Icons.notifications_rounded),
-                          )
-                        : const Icon(Icons.notifications_outlined),
-                    tooltip: 'Notifications',
-                    onPressed: () => context.push('/notifications'),
+                    icon: const Icon(Icons.account_circle_rounded),
+                    iconSize: 28,
+                    tooltip: 'Profile',
+                    onPressed: () => context.push('/profile'),
                   ),
                 ],
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  void _showQuickAccessSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4, bottom: 16),
-                    child: Text(
-                      'Quick Access',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _QuickAccessTile(
-                          icon: Icons.support_agent_rounded,
-                          label: 'Waiter Calls',
-                          color: AppColors.primary,
-                          onTap: () {
-                            Navigator.pop(context);
-                            context.push('/waiter-calls');
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _QuickAccessTile(
-                          icon: Icons.delivery_dining_rounded,
-                          label: 'Kitchen Ready',
-                          color: AppColors.success,
-                          onTap: () {
-                            Navigator.pop(context);
-                            context.push('/kitchen/ready');
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _QuickAccessTile(
-                          icon: Icons.timer_off_rounded,
-                          label: 'Delayed Tickets',
-                          color: AppColors.error,
-                          onTap: () {
-                            Navigator.pop(context);
-                            context.push('/kitchen/delayed');
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _QuickAccessTile(
-                          icon: Icons.account_balance_wallet_rounded,
-                          label: 'Pending Bills',
-                          color: AppColors.warning,
-                          onTap: () {
-                            Navigator.pop(context);
-                            context.push('/billing/pending');
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _QuickAccessTile(
-                          icon: Icons.history_rounded,
-                          label: 'Order History',
-                          color: Colors.deepPurpleAccent,
-                          onTap: () {
-                            context.pop();
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _QuickAccessTile(
-                          icon: Icons.developer_mode_rounded,
-                          label: 'Developer Options',
-                          color: Colors.cyan,
-                          onTap: () {
-                            context.pop();
-                            context.push('/settings/developer');
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _QuickAccessTile(
-                          icon: Icons.schedule_rounded,
-                          label: 'My Shift',
-                          color: AppColors.primary,
-                          onTap: () {
-                            Navigator.pop(context);
-                            context.push('/shift/dashboard');
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _QuickAccessTile(
-                          icon: Icons.groups_rounded,
-                          label: 'Staff Presence',
-                          color: AppColors.success,
-                          onTap: () {
-                            Navigator.pop(context);
-                            context.push('/staff/presence');
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _QuickAccessTile(
-                          icon: Icons.crisis_alert_rounded,
-                          label: 'Alerts',
-                          color: AppColors.error,
-                          onTap: () {
-                            Navigator.pop(context);
-                            context.push('/manager/alerts');
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _QuickAccessTile(
-                          icon: Icons.person_rounded,
-                          label: 'My Profile',
-                          color: Colors.blue,
-                          onTap: () {
-                            Navigator.pop(context);
-                            context.push('/profile');
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _QuickAccessTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _QuickAccessTile({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.25)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-            ),
-          ],
         ),
       ),
     );

@@ -46,6 +46,7 @@ extension TableDtoMapper on TableDto {
       floorId: floorId,
       floorName: floorName,
       customerPaymentIntent: customerPaymentIntent,
+      assignedStaffId: assignedStaffId,
     );
   }
 }
@@ -67,6 +68,7 @@ extension RestaurantTableMapper on RestaurantTable {
       floorId: floorId,
       floorName: floorName,
       customerPaymentIntent: customerPaymentIntent,
+      assignedStaffId: assignedStaffId,
     );
   }
 }

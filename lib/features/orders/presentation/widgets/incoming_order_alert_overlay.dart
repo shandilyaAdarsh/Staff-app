@@ -8,10 +8,11 @@
 //   • Stays on screen until a staff member accepts or passes (no auto-expire timer)
 
 import 'dart:async';
-import 'dart:math' as math;
+
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../domain/entities/order_alert_model.dart';
@@ -104,8 +105,8 @@ class _OrderAlertListenerState extends ConsumerState<OrderAlertListener> {
     HapticFeedback.heavyImpact();
 
     _currentReadyOverlay = OverlayEntry(
-      builder: (overlayContext) => ProviderScope(
-        parent: ProviderScope.containerOf(context),
+      builder: (overlayContext) => UncontrolledProviderScope(
+        container: ProviderScope.containerOf(context),
         child: OrderReadyPopupOverlay(
           alert: alert,
           onAcknowledge: () {
@@ -244,12 +245,24 @@ class _IncomingOrderAlertOverlayState
 
   Future<void> _onAccept(IncomingOrderAlert alert) async {
     if (_isAccepting) return;
-    HapticFeedback.heavyImpact();
+    await HapticFeedback.heavyImpact();
     setState(() => _isAccepting = true);
-    final success = await ref
-        .read(orderAlertNotifierProvider.notifier)
-        .acceptAlert(alert.orderId, alert.versionNum);
-    if (success) widget.onAccepted();
+    
+    if (alert.intent == 'NEW_ORDER_FOR_MY_TABLE') {
+      // Just dismiss the notification and optionally navigate. We don't assign.
+      ref.read(orderAlertNotifierProvider.notifier).dismissAlert(alert.orderId);
+      widget.onAccepted();
+      if (alert.tableId != null && mounted) {
+        context.go('/tables/${alert.tableId}');
+      }
+    } else {
+      // TABLE_ASSIGNMENT_REQUIRED (or fallback): attempt to assign waiter
+      final success = await ref
+          .read(orderAlertNotifierProvider.notifier)
+          .acceptAlert(alert.orderId, alert.versionNum);
+      if (success) widget.onAccepted();
+    }
+    
     if (mounted) setState(() => _isAccepting = false);
   }
 
@@ -321,90 +334,102 @@ class _IncomingOrderAlertOverlayState
     );
   }
 
-  IncomingOrderAlert _emptyAlert() => IncomingOrderAlert(
-        alertId: 'empty',
-        orderId: widget.orderId,
-        orderNumber: 'N/A',
-        tableNumber: 'N/A',
-        itemCount: 0,
-        totalAmountMinor: 0,
-        versionNum: 1,
-        orderTime: DateTime.now(),
-        receivedAt: DateTime.now(),
-        items: const [],
-      );
+
 
   Widget _buildCard(IncomingOrderAlert alert, bool isEnriched) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
       constraints: const BoxConstraints(maxWidth: 420),
-      child: AnimatedBuilder(
-        animation: _pulseAnimation,
-        builder: (context, child) => Container(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF1C1C2E), Color(0xFF16213E)],
-            ),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(
-              color: const Color(0xFFFF6B35).withValues(alpha: _pulseAnimation.value),
-              width: 2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFFF6B35).withValues(alpha: 0.35 * _pulseAnimation.value),
-                blurRadius: 50,
-                spreadRadius: 8,
-              ),
-              const BoxShadow(
-                color: Colors.black87,
-                blurRadius: 40,
-                offset: Offset(0, 12),
-              ),
-            ],
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.14),
+            blurRadius: 32,
+            offset: const Offset(0, 12),
           ),
-          child: child,
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Red header banner
+            _buildHeaderBanner(alert),
+            // Body content
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+              child: _buildCardContent(alert, isEnriched),
+            ),
+          ],
         ),
-        child: _buildCardContent(alert, isEnriched),
+      ),
+    );
+  }
+
+  Widget _buildHeaderBanner(IncomingOrderAlert alert) {
+    final isNewOrderForMe = alert.intent == 'NEW_ORDER_FOR_MY_TABLE';
+    final bgColor = isNewOrderForMe ? const Color(0xFF1D4ED8) : const Color(0xFFE31E24);
+    return Container(
+      width: double.infinity,
+      color: bgColor,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      child: Row(
+        children: [
+          AnimatedBuilder(
+            animation: _pulseAnimation,
+            builder: (_, child) => Transform.rotate(
+              angle: ((_pulseAnimation.value - 0.7) * 0.3),
+              child: const Icon(Icons.notifications_active_rounded, color: Colors.white, size: 22),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              isNewOrderForMe
+                  ? 'New Order on Your Table'
+                  : (alert.isReassignment ? 'Order Passed to You' : 'New Order Received!'),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildCardContent(IncomingOrderAlert alert, bool isEnriched) {
     final alertState = ref.watch(orderAlertNotifierProvider);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Overflow warning
-          if (alertState.hasOverflow) ...[
-            _buildOverflowBanner(alertState.overflowCount),
-            const SizedBox(height: 12),
-          ],
-
-          // Header row: bell icon + title
-          _buildHeader(alert),
-          const SizedBox(height: 16),
-
-          // Table badge
-          _buildTableBadge(alert),
-          const SizedBox(height: 16),
-
-          // Stats row: items / amount / time
-          _buildStatsRow(alert, isEnriched),
-          const SizedBox(height: 14),
-
-          // Items list — always visible, shows shimmer while loading
-          _buildItemsSection(alert, isEnriched),
-          const SizedBox(height: 20),
-
-          // Action buttons
-          _buildActionButtons(alert),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Overflow warning
+        if (alertState.hasOverflow) ...[
+          _buildOverflowBanner(alertState.overflowCount),
+          const SizedBox(height: 12),
         ],
-      ),
+
+        // Table badge
+        _buildTableBadge(alert),
+        const SizedBox(height: 14),
+
+        // Stats row: items / amount / time
+        _buildStatsRow(alert, isEnriched),
+        const SizedBox(height: 14),
+
+        // Items list
+        _buildItemsSection(alert, isEnriched),
+        const SizedBox(height: 20),
+
+        // Action buttons
+        _buildActionButtons(alert),
+      ],
     );
   }
 
@@ -434,105 +459,62 @@ class _IncomingOrderAlertOverlayState
     );
   }
 
-  Widget _buildHeader(IncomingOrderAlert alert) {
-    return Row(
-      children: [
-        // Animated bell
-        AnimatedBuilder(
-          animation: _pulseAnimation,
-          builder: (context, _) => Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFF6B35).withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: const Color(0xFFFF6B35).withValues(alpha: _pulseAnimation.value),
-                width: 1.5,
-              ),
-            ),
-            child: const Icon(
-              Icons.notifications_active_rounded,
-              color: Color(0xFFFF6B35),
-              size: 26,
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-
-        // Title
-        Expanded(
-          child: Column(
+  Widget _buildTableBadge(IncomingOrderAlert alert) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF2F2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                alert.isReassignment ? 'Order Passed to You' : 'New Order Received!',
-                style: GoogleFonts.inter(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
+                'TABLE',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFFE31E24),
+                  letterSpacing: 1.5,
                 ),
               ),
               Text(
-                'Accept or pass the order below',
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  color: Colors.white38,
-                  fontWeight: FontWeight.w500,
+                alert.tableNumber,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF0F172A),
+                  height: 1.1,
                 ),
               ),
             ],
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTableBadge(IncomingOrderAlert alert) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFFFF6B35).withValues(alpha: 0.18),
-            const Color(0xFFFF8C42).withValues(alpha: 0.08),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFFFF6B35).withValues(alpha: 0.35),
-        ),
-      ),
-      child: Column(
-        children: [
-          Text(
-            'TABLE',
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFFFF6B35).withValues(alpha: 0.7),
-              letterSpacing: 3,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            alert.tableNumber,
-            style: GoogleFonts.inter(
-              fontSize: 40,
-              fontWeight: FontWeight.w900,
-              color: const Color(0xFFFF6B35),
-              height: 1.1,
-            ),
-          ),
-          Text(
-            alert.orderNumber,
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              color: Colors.white38,
-              fontWeight: FontWeight.w500,
-              letterSpacing: 0.5,
-            ),
+          const Spacer(),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                'ORDER',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF64748B),
+                  letterSpacing: 1.5,
+                ),
+              ),
+              Text(
+                alert.orderNumber,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF334155),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -541,35 +523,32 @@ class _IncomingOrderAlertOverlayState
 
   Widget _buildStatsRow(IncomingOrderAlert alert, bool isEnriched) {
     final timeStr = TimeOfDay.fromDateTime(alert.orderTime).format(context);
-
     return Row(
       children: [
-        // Items chip
         _buildStatChip(
           icon: Icons.shopping_bag_outlined,
-          value: isEnriched ? '${alert.itemCount}' : null,
+          value: isEnriched ? '${alert.itemCount} items' : null,
           label: 'Items',
-          color: const Color(0xFF4ECDC4),
+          color: const Color(0xFF0F172A),
+          bgColor: const Color(0xFFF1F5F9),
           isLoading: !isEnriched,
         ),
         const SizedBox(width: 8),
-
-        // Amount chip
         _buildStatChip(
           icon: Icons.currency_rupee_rounded,
-          value: isEnriched ? alert.formattedTotal.replaceAll('₹', '') : null,
-          label: '₹ Total',
-          color: const Color(0xFFFFD700),
+          value: isEnriched ? alert.formattedTotal : null,
+          label: 'Total',
+          color: const Color(0xFF0F172A),
+          bgColor: const Color(0xFFF1F5F9),
           isLoading: !isEnriched,
         ),
         const SizedBox(width: 8),
-
-        // Time chip (always available)
         _buildStatChip(
           icon: Icons.access_time_rounded,
           value: timeStr,
           label: 'Time',
-          color: Colors.white54,
+          color: const Color(0xFF0F172A),
+          bgColor: const Color(0xFFF1F5F9),
           isLoading: false,
         ),
       ],
@@ -581,40 +560,40 @@ class _IncomingOrderAlertOverlayState
     required String? value,
     required String label,
     required Color color,
+    Color? bgColor,
     required bool isLoading,
   }) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withValues(alpha: 0.25)),
+          color: bgColor ?? const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(height: 5),
+            Icon(icon, color: const Color(0xFFE31E24), size: 16),
+            const SizedBox(height: 4),
             isLoading
-                ? _buildShimmerLine(width: 32, height: 12, color: color)
+                ? _buildShimmerLine(width: 32, height: 11, color: const Color(0xFF94A3B8))
                 : Text(
                     value ?? '—',
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
                       color: color,
                     ),
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                   ),
-            const SizedBox(height: 1),
+            const SizedBox(height: 2),
             Text(
               label,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.plusJakartaSans(
                 fontSize: 9,
-                color: color.withValues(alpha: 0.6),
+                color: const Color(0xFF94A3B8),
                 fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
+                letterSpacing: 0.3,
               ),
             ),
           ],
@@ -656,19 +635,15 @@ class _IncomingOrderAlertOverlayState
 
   Widget _buildItemsSection(IncomingOrderAlert alert, bool isEnriched) {
     if (!isEnriched || alert.items.isEmpty) {
-      // Show fallback message if enrichment deadline has passed (6s) — prevents infinite shimmer
-      if (_enrichmentDeadlinePassed) {
-        return _buildItemsFallback();
-      }
-      // Show shimmer skeleton rows while waiting for item details
+      if (_enrichmentDeadlinePassed) return _buildItemsFallback();
       return _buildItemsShimmer();
     }
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        color: const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Column(
         children: [
@@ -677,29 +652,29 @@ class _IncomingOrderAlertOverlayState
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
             child: Row(
               children: [
-                const Icon(Icons.receipt_long_rounded, color: Color(0xFF4ECDC4), size: 14),
+                const Icon(Icons.receipt_long_rounded, color: Color(0xFFE31E24), size: 14),
                 const SizedBox(width: 6),
                 Text(
                   'ORDER ITEMS',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.plusJakartaSans(
                     fontSize: 10,
-                    color: const Color(0xFF4ECDC4),
+                    color: const Color(0xFF64748B),
                     fontWeight: FontWeight.w700,
-                    letterSpacing: 1.5,
+                    letterSpacing: 1.2,
                   ),
                 ),
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF4ECDC4).withValues(alpha: 0.12),
+                    color: const Color(0xFFE31E24).withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     '${alert.itemCount} items',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.plusJakartaSans(
                       fontSize: 10,
-                      color: const Color(0xFF4ECDC4),
+                      color: const Color(0xFFE31E24),
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -707,84 +682,75 @@ class _IncomingOrderAlertOverlayState
               ],
             ),
           ),
-          const Divider(color: Colors.white10, height: 1),
+          const Divider(color: Color(0xFFE2E8F0), height: 1),
 
-          // Item rows (max 4 visible to keep card compact)
+          // Item rows
           ...alert.items.take(4).map(
-                (item) => Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                  child: Row(
-                    children: [
-                      // Qty badge
-                      Container(
-                        width: 26,
-                        height: 26,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFF6B35).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          '${item.quantity}',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w900,
-                            color: const Color(0xFFFF6B35),
-                          ),
-                        ),
+            (item) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              child: Row(
+                children: [
+                  Container(
+                    width: 26,
+                    height: 26,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE31E24).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${item.quantity}',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFFE31E24),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          item.name,
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white70,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      // ×qty text
-                      Text(
-                        '×${item.quantity}',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          color: Colors.white30,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      item.name,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1E293B),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
+            ),
+          ),
 
-          // "... more" indicator
           if (alert.items.length > 4)
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
               child: Text(
                 '+${alert.items.length - 4} more items',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.plusJakartaSans(
                   fontSize: 11,
-                  color: Colors.white30,
+                  color: const Color(0xFF94A3B8),
                   fontStyle: FontStyle.italic,
                 ),
               ),
             ),
 
-          if (alert.items.length <= 4) const SizedBox(height: 4),
+          if (alert.items.length <= 4) const SizedBox(height: 6),
         ],
       ),
     );
   }
 
+
+
   Widget _buildItemsShimmer() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        color: const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       padding: const EdgeInsets.all(14),
       child: Column(
@@ -792,20 +758,18 @@ class _IncomingOrderAlertOverlayState
         children: [
           Row(
             children: [
-              _buildShimmerLine(width: 100, height: 10, color: const Color(0xFF4ECDC4)),
+              _buildShimmerLine(width: 100, height: 10, color: const Color(0xFFCBD5E1)),
               const Spacer(),
-              _buildShimmerLine(width: 60, height: 10, color: const Color(0xFF4ECDC4)),
+              _buildShimmerLine(width: 60, height: 10, color: const Color(0xFFCBD5E1)),
             ],
           ),
           const SizedBox(height: 12),
           for (int i = 0; i < 3; i++) ...[
             Row(
               children: [
-                _buildShimmerLine(width: 26, height: 26, color: const Color(0xFFFF6B35)),
+                _buildShimmerLine(width: 26, height: 26, color: const Color(0xFFE2E8F0)),
                 const SizedBox(width: 10),
-                _buildShimmerLine(width: 120 - i * 20.0, height: 12, color: Colors.white),
-                const Spacer(),
-                _buildShimmerLine(width: 24, height: 12, color: Colors.white30),
+                _buildShimmerLine(width: 120 - i * 20.0, height: 12, color: const Color(0xFFCBD5E1)),
               ],
             ),
             if (i < 2) const SizedBox(height: 10),
@@ -819,24 +783,26 @@ class _IncomingOrderAlertOverlayState
   Widget _buildItemsFallback() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        color: const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.cloud_off_rounded, color: Colors.white24, size: 16),
+          const Icon(Icons.cloud_off_rounded, color: Color(0xFF94A3B8), size: 16),
           const SizedBox(width: 8),
-          Text(
-            'Item details unavailable — please accept to view full order',
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              color: Colors.white30,
-              fontStyle: FontStyle.italic,
+          Expanded(
+            child: Text(
+              'Item details unavailable — please accept to view full order',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 11,
+                color: const Color(0xFF94A3B8),
+                fontStyle: FontStyle.italic,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -844,96 +810,82 @@ class _IncomingOrderAlertOverlayState
   }
 
   Widget _buildActionButtons(IncomingOrderAlert alert) {
+    final isNewOrderForMe = alert.intent == 'NEW_ORDER_FOR_MY_TABLE';
+
     return Column(
       children: [
-        // Accept
+        // Primary button: ACCEPT & CLAIM (green) or VIEW ORDER (blue)
         SizedBox(
           width: double.infinity,
-          height: 54,
+          height: 52,
           child: ElevatedButton(
             onPressed: _isAccepting ? null : () => _onAccept(alert),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.transparent,
-              padding: EdgeInsets.zero,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              backgroundColor: isNewOrderForMe
+                  ? const Color(0xFF1D4ED8)
+                  : const Color(0xFF16A34A),
+              disabledBackgroundColor: const Color(0xFFCBD5E1),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               elevation: 0,
-              disabledBackgroundColor: Colors.transparent,
             ),
-            child: Ink(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: _isAccepting
-                      ? [Colors.grey.shade700, Colors.grey.shade800]
-                      : [const Color(0xFF22C55E), const Color(0xFF16A34A)],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: _isAccepting
-                    ? []
-                    : [
-                        BoxShadow(
-                          color: const Color(0xFF22C55E).withValues(alpha: 0.45),
-                          blurRadius: 20,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-              ),
-              child: Container(
-                alignment: Alignment.center,
-                child: _isAccepting
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
-                      )
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.check_circle_rounded, color: Colors.white, size: 22),
-                          const SizedBox(width: 10),
-                          Text(
-                            'Accept Order',
-                            style: GoogleFonts.inter(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
+            child: _isAccepting
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        isNewOrderForMe ? Icons.visibility_rounded : Icons.check_circle_rounded,
+                        color: Colors.white,
+                        size: 20,
                       ),
+                      const SizedBox(width: 8),
+                      Text(
+                        isNewOrderForMe ? 'VIEW ORDER' : 'ACCEPT & CLAIM',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+
+        // Pass button — only for unassigned tables
+        if (!isNewOrderForMe) ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: TextButton(
+              onPressed: _isPassing ? null : () => _onPass(alert),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF64748B),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.swap_horiz_rounded, size: 18, color: Color(0xFF94A3B8)),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Pass Order',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF64748B),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 10),
-
-        // Pass
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: OutlinedButton(
-            onPressed: _isPassing ? null : () => _onPass(alert),
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(color: Colors.white.withValues(alpha: 0.2), width: 1.5),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              foregroundColor: Colors.white54,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.swap_horiz_rounded, size: 18),
-                const SizedBox(width: 8),
-                Text(
-                  'Pass Order',
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white54,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+        ],
       ],
     );
   }
@@ -943,42 +895,4 @@ class _IncomingOrderAlertOverlayState
 // Countdown ring painter
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _CountdownRingPainter extends CustomPainter {
-  final double progress;
-  final Color color;
 
-  _CountdownRingPainter({required this.progress, required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width / 2) - 4;
-
-    // Background track
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()
-        ..color = Colors.white10
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.5,
-    );
-
-    // Progress arc
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -math.pi / 2,
-      2 * math.pi * progress,
-      false,
-      Paint()
-        ..color = color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.5
-        ..strokeCap = StrokeCap.round,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_CountdownRingPainter old) =>
-      old.progress != progress || old.color != color;
-}

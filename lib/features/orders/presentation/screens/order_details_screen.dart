@@ -23,9 +23,9 @@ class OrderDetailsScreen extends ConsumerWidget {
       stream: repository.watchOrderById(orderId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Scaffold(
-            backgroundColor: const Color(0xFF0F0F1A),
-            body: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+          return const Scaffold(
+            backgroundColor: Color(0xFF0F0F1A),
+            body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
           );
         }
 
@@ -320,7 +320,7 @@ class _OrderDetailsContent extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionTitle(title: 'Order Flow', icon: Icons.timeline_rounded),
+          const _SectionTitle(title: 'Order Flow', icon: Icons.timeline_rounded),
           const SizedBox(height: 16),
           Row(
             children: List.generate(stages.length, (i) {
@@ -462,7 +462,7 @@ class _OrderDetailsContent extends ConsumerWidget {
             width: 46,
             height: 46,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
+              gradient: const LinearGradient(
                 colors: [AppColors.primary, AppColors.secondary],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -553,7 +553,7 @@ class _OrderDetailsContent extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
             child: Row(
               children: [
-                _SectionTitle(title: 'Order Items', icon: Icons.restaurant_menu_rounded),
+                const _SectionTitle(title: 'Order Items', icon: Icons.restaurant_menu_rounded),
                 const Spacer(),
                 Text(
                   order.totalPrice.formatted,
@@ -859,7 +859,7 @@ class _OrderDetailsContent extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionTitle(title: 'Cancellation Log', icon: Icons.assignment_late_rounded),
+          const _SectionTitle(title: 'Cancellation Log', icon: Icons.assignment_late_rounded),
           const SizedBox(height: 12),
           ...order.cancelLogs.map(
             (log) => Padding(

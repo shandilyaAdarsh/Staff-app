@@ -18,50 +18,38 @@ class NotificationCenterScreen extends ConsumerWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Flexible(
-              child: Text(
-                'Notifications',
-                style: TextStyle(fontWeight: FontWeight.w900),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (unreadCount > 0) ...[
-              const SizedBox(width: 8),
-              Badge(
-                label: Text('$unreadCount'),
-                backgroundColor: AppColors.error,
-              ),
-            ],
-          ],
-        ),
-        actions: [
-          if (notifications.any((n) => !n.isRead))
-            IconButton(
-              icon: const Icon(Icons.mark_chat_read_rounded),
-              tooltip: 'Mark All Read',
-              onPressed: () {
-                HapticFeedback.lightImpact();
-                ref.read(notificationsProvider.notifier).markAllAsRead();
-              },
-            ),
-          IconButton(
-            icon: const Icon(Icons.delete_sweep_rounded),
-            onPressed: () {
-              HapticFeedback.mediumImpact();
-              ref.read(notificationsProvider.notifier).clearAll();
-            },
-            tooltip: 'Clear All',
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
       body: notifications.isEmpty
           ? _buildEmptyState(theme, isDark)
-          : ListView.builder(
+          : Column(
+              children: [
+                if (notifications.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        if (notifications.any((n) => !n.isRead))
+                          TextButton.icon(
+                            icon: const Icon(Icons.mark_chat_read_rounded, size: 20),
+                            label: const Text('Mark All Read'),
+                            onPressed: () {
+                              HapticFeedback.lightImpact();
+                              ref.read(notificationsProvider.notifier).markAllAsRead();
+                            },
+                          ),
+                        TextButton.icon(
+                          icon: const Icon(Icons.delete_sweep_rounded, size: 20),
+                          label: const Text('Clear All'),
+                          onPressed: () {
+                            HapticFeedback.mediumImpact();
+                            ref.read(notificationsProvider.notifier).clearAll();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                Expanded(
+                  child: ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: notifications.length,
               itemBuilder: (context, index) {
@@ -86,6 +74,9 @@ class NotificationCenterScreen extends ConsumerWidget {
                 );
               },
             ),
+          ),
+        ],
+      ),
     );
   }
 

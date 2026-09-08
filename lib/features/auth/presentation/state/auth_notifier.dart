@@ -9,9 +9,13 @@ import '../../../../core/storage/device_context_store.dart';
 import '../../providers/auth_repository_provider.dart';
 import '../../../../core/runtime/runtime.dart';
 import '../../../../core/network/secure_storage.dart';
+import '../../../../core/network/realtime_sync_manager.dart';
 import 'package:flutter/foundation.dart';
 
 part 'auth_notifier.g.dart';
+
+/// Roles that are NOT permitted to access the Staff (Floor/Waiter) App.
+const _kStaffAppBlockedRoles = {StaffRole.kdsOperator};
 
 @Riverpod(keepAlive: true)
 class AuthNotifier extends _$AuthNotifier {
@@ -51,6 +55,12 @@ class AuthNotifier extends _$AuthNotifier {
     // Need an admin/device token to fetch staff
     const secureStorage = SecureLocalStorage();
     final token = await secureStorage.read('access_token') ?? '';
+    if (token.isEmpty) {
+      debugPrint('[AuthNotifier] loadStaffForBranch: No access token found. Returning empty list.');
+      _staffMembers = [];
+      return;
+    }
+
     final repo = ref.read(authRepositoryProvider);
     _staffMembers = await repo.getStaffForBranch(
       store.tenantId!,
@@ -120,8 +130,17 @@ class AuthNotifier extends _$AuthNotifier {
     final staff = await repo.loginWithPin(_staffMembers, employeeId, pin);
 
     if (staff != null) {
+      // Role-based authorization: KDS-only roles may not access the Staff App.
+      if (_kStaffAppBlockedRoles.contains(staff.role)) {
+        state = state.copyWith(
+          errorMessage:
+              'Your account is not authorized to use the Staff app. '
+              'Please contact your manager.',
+        );
+        return false;
+      }
+
       // Check persistent wizard flag as a belt-and-suspenders fallback.
-      // If the DB hasn't caught up but we already marked it locally, honour that.
       final store = ref.read(deviceContextStoreProvider);
       final locallyCompleted = store.isProfileCompletedFor(staff.id);
       final effectiveStaff = locallyCompleted && !staff.profileCompleted
@@ -129,7 +148,11 @@ class AuthNotifier extends _$AuthNotifier {
           : staff;
 
       state = state.copyWith(loggedInStaff: effectiveStaff, isLocked: false);
-      return true;
+
+      // Automatically start the shift.
+      await startShift(effectiveStaff.role, 'General');
+
+      return state.errorMessage == null;
     } else {
       state = state.copyWith(
         errorMessage: 'Invalid PIN code. Please try again.',
@@ -153,7 +176,8 @@ class AuthNotifier extends _$AuthNotifier {
       section: section,
     );
 
-    // Hydrate runtime session using backend-authoritative data
+    // Hydrate runtime session using backend-authoritative data.
+    // runtime_session_hydrator persists runtime_token to secure storage.
     final hydrator = ref.read(runtimeSessionHydratorProvider);
     final result = await hydrator.hydrateSession(
       branchId: state.selectedBranch!.id,
@@ -174,6 +198,18 @@ class AuthNotifier extends _$AuthNotifier {
         shiftStartTime: DateTime.now(),
         isLocked: false,
       );
+
+      // Start realtime ONLY after verifying runtime_token is in secure storage.
+      // hydrateSession() guarantees this, but we confirm before opening the
+      // WebSocket to prevent the reconnect loop shown in the logs.
+      const secureStorage = SecureLocalStorage();
+      final runtimeToken = await secureStorage.read('runtime_token');
+      if (runtimeToken != null && runtimeToken.isNotEmpty) {
+        debugPrint('[AuthNotifier] runtime_token confirmed — starting realtime.');
+        ref.read(realtimeSyncManagerProvider).connectLocal();
+      } else {
+        debugPrint('[AuthNotifier] WARNING: hydrateSession succeeded but runtime_token is absent. Realtime NOT started.');
+      }
     } else {
       state = state.copyWith(
         errorMessage: result.errorMessage ?? 'Failed to start shift',
@@ -206,8 +242,40 @@ class AuthNotifier extends _$AuthNotifier {
     );
   }
 
-  void logout() {
+  /// Staff session teardown. Stops realtime, clears only the runtime_token.
+  /// Preserves device access_token/refresh_token so the tablet can still
+  /// fetch the staff list for the next login without re-registering.
+  Future<void> logout() async {
+    debugPrint('[AuthNotifier] logout() — tearing down Staff session.');
+
+    // 1. Stop WebSocket immediately. Cancel reconnect timers.
+    //    Uses disconnectLocal() to preserve the event stream for re-login.
+    try {
+      ref.read(realtimeSyncManagerProvider).disconnectLocal();
+    } catch (e) {
+      debugPrint('[AuthNotifier] realtime disconnect error (ignored): $e');
+    }
+
+    // 2. Stop the runtime orchestrator session (projection rebuilds, etc.).
+    try {
+      ref.read(runtimeOrchestratorProvider).endSession();
+    } catch (e) {
+      debugPrint('[AuthNotifier] runtime stop error (ignored): $e');
+    }
+
+    // 3. Clear ONLY runtime_token. Preserve device access_token/refresh_token
+    //    so loadStaffForBranch() can still fetch the staff list for the
+    //    next login without the tablet needing to re-register.
+    try {
+      const secureStorage = SecureLocalStorage();
+      await secureStorage.delete('runtime_token');
+    } catch (e) {
+      debugPrint('[AuthNotifier] Token clear error (ignored): $e');
+    }
+
+    // 4. Reset auth state — UI router will redirect to /login.
     state = const AuthState();
+    debugPrint('[AuthNotifier] Logout complete. Device tokens preserved.');
   }
 
   Future<bool> updateProfile(Map<String, dynamic> profileData) async {

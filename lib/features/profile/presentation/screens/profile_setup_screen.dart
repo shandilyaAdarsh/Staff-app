@@ -112,11 +112,11 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
       if (success) {
         if (step == 1) {
-          _pageController.nextPage(
+          await _pageController.nextPage(
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOut,
           );
-          setState(() => _currentStep = 1);
+          if (mounted) setState(() => _currentStep = 1);
         } else {
           // Go router will automatically redirect to dashboard since profile_completed is now true!
           // But just in case, we can force a refresh or redirect.
@@ -163,7 +163,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
               surface: AppColors.darkSurface,
               onSurface: AppColors.darkTextPrimary,
             ),
-            dialogTheme: DialogThemeData(
+            dialogTheme: const DialogThemeData(
               backgroundColor: AppColors.darkSurface,
             ),
           ),

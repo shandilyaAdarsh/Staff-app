@@ -33,11 +33,8 @@ import 'invalidation_coordinator.dart';
 import 'projection_rebuild_engine.dart';
 import '../network/realtime_sync_manager.dart';
 import '../../features/auth/presentation/state/auth_notifier.dart';
-import '../../features/orders/providers/orders_providers.dart';
 import '../../features/orders/providers/orders_realtime_provider.dart';
 import '../../core/network/network_providers.dart';
-import '../../features/orders/presentation/state/orders_projection_provider.dart';
-import '../../features/orders/domain/entities/order.dart';
 import '../../features/tables/providers/tables_providers.dart';
 import '../../features/waiter_calls/presentation/state/waiter_calls_providers.dart';
 // KDS runtime
@@ -241,10 +238,8 @@ class OperationalRuntimeBridge {
             receivedAt: event.receivedAt,
           ));
         }
-        // Immediately rebuild orders projection so UI gets the updated order
-        await _rebuildOrdersProjection();
         // Force-refresh floor cards table status when an order is accepted/modified
-        _ref.read(tableGridNotifierProvider.notifier).refreshTables();
+        await _ref.read(tableGridNotifierProvider.notifier).refreshTables();
         break;
       case RuntimeEventType.orderDelete:
       case RuntimeEventType.tableUpdate:
@@ -300,6 +295,18 @@ class OperationalRuntimeBridge {
         }
         break;
 
+      // ── Waiter Assignment Event ────────────────────────────────────────────
+      // Emitted by POST /orders/:id/assign_waiter after successful DB write.
+      // Refreshes the table grid so "My Tables" updates instantly on all
+      // staff devices in the branch. No alert popup — the accepting waiter
+      // already has the HTTP response; others are not notified.
+      case RuntimeEventType.tableWaiterAssigned:
+        await _ref.read(tableGridNotifierProvider.notifier).refreshTables();
+        debugPrint(
+          '[OperationalRuntimeBridge] TABLE_WAITER_ASSIGNED: table grid refreshed for branch ${event.branchId}',
+        );
+        break;
+
       case RuntimeEventType.unknown:
       default:
         debugPrint(
@@ -351,16 +358,27 @@ class OperationalRuntimeBridge {
       unawaited(alertService.playOrderReadyAlert());
       _ref.read(orderAlertNotifierProvider.notifier).enqueueReadyAlert(payload);
     } else if (event.type == RuntimeEventType.orderAccepted || event.type == RuntimeEventType.orderPreparing) {
-      // ORDER_ACCEPTED fires when KDS accepts an order.
-      // This is a BROADCAST event — ALL waiters on the floor need to see the popup
-      // so they know the order has been accepted and can track it.
-      debugPrint(
-        '[OperationalRuntimeBridge] ${event.type.name} — broadcasting alert to all staff.',
-      );
-      
-      await _enrichAlertPayload(payload);
-      unawaited(alertService.playNewOrderAlert());
-      _ref.read(orderAlertNotifierProvider.notifier).enqueueAlert(payload);
+      if (assignedStaffId == null) {
+        // Unassigned table: Broadcast to all staff to claim
+        debugPrint('[OperationalRuntimeBridge] ${event.type.name} — Table unassigned. Broadcasting TABLE_ASSIGNMENT_REQUIRED alert.');
+        payload['intent'] = 'TABLE_ASSIGNMENT_REQUIRED';
+        // Backend ORDER_ACCEPTED payload is already complete (items, total, tableNumber).
+        // Enrichment is skipped to avoid a redundant authenticated API call.
+        unawaited(alertService.playNewOrderAlert());
+        _ref.read(orderAlertNotifierProvider.notifier).enqueueAlert(payload);
+      } else if (assignedStaffId == currentStaffId) {
+        // Already assigned to ME: targeted new-order notification (no claim button)
+        debugPrint('[OperationalRuntimeBridge] ${event.type.name} — Table assigned to ME. Enqueuing NEW_ORDER_FOR_MY_TABLE alert.');
+        payload['intent'] = 'NEW_ORDER_FOR_MY_TABLE';
+        // Backend ORDER_ACCEPTED payload is already complete (items, total, tableNumber).
+        // Enrichment is skipped to avoid a redundant authenticated API call.
+        unawaited(alertService.playNewOrderAlert());
+        _ref.read(orderAlertNotifierProvider.notifier).enqueueAlert(payload);
+      } else {
+        // Assigned to someone else: ignore completely
+        debugPrint('[OperationalRuntimeBridge] ${event.type.name} — Table assigned to another staff ($assignedStaffId). Ignoring.');
+        return;
+      }
     } else {
       // ORDER_ASSIGNED and other alerts — use assignedStaffId targeting
       if (assignedStaffId != null && assignedStaffId != currentStaffId) {
@@ -404,7 +422,7 @@ class OperationalRuntimeBridge {
         final dio = _ref.read(dioClientProvider);
         final response = await dio.get('/api/v1/orders/$orderId');
 
-        if (response.statusCode == 200 && response.data['success'] == true) {
+        if (response.statusCode == 200 && (response.data['success'] == true || response.data['status'] == 'success')) {
           final orderData = (response.data['data']?['order'] ??
               response.data['data']) as Map<String, dynamic>?;
 
@@ -458,6 +476,8 @@ class OperationalRuntimeBridge {
 
   RuntimeEventType _mapEventType(String syncEventType) {
     switch (syncEventType) {
+      case 'TABLE_WAITER_ASSIGNED':
+        return RuntimeEventType.tableWaiterAssigned;
       case 'table_update':
         return RuntimeEventType.tableUpdate;
       case 'table_delete':
@@ -663,13 +683,7 @@ class OperationalRuntimeBridge {
   // ━━━━━━━━━━━━━━━━━━━━━━ PROJECTION REBUILDERS ━━━━━━━━━━━━━━━━━━━━━━
 
   void _registerProjectionRebuilders() {
-    _orchestrator.registerProjection(
-      ProjectionRegistration(
-        projectionKey: 'ProjectionDomain.orders',
-        rebuilder: _rebuildOrdersProjection,
-        priority: 10,
-      ),
-    );
+    // 1. Tables Projection
     _orchestrator.registerProjection(
       ProjectionRegistration(
         projectionKey: 'ProjectionDomain.tables',
@@ -677,6 +691,7 @@ class OperationalRuntimeBridge {
         priority: 10,
       ),
     );
+    // 2. Waiter Calls Projection
     _orchestrator.registerProjection(
       ProjectionRegistration(
         projectionKey: 'ProjectionDomain.waiterCalls',
@@ -684,13 +699,7 @@ class OperationalRuntimeBridge {
         priority: 10,
       ),
     );
-    _orchestrator.registerProjection(
-      ProjectionRegistration(
-        projectionKey: 'ProjectionDomain.reservations',
-        rebuilder: _rebuildReservationsProjection,
-        priority: 10,
-      ),
-    );
+    // 3. Staff Projection
     _orchestrator.registerProjection(
       ProjectionRegistration(
         projectionKey: 'ProjectionDomain.staff',
@@ -698,6 +707,7 @@ class OperationalRuntimeBridge {
         priority: 10,
       ),
     );
+    // 4. Alerts Projection
     _orchestrator.registerProjection(
       ProjectionRegistration(
         projectionKey: 'ProjectionDomain.alerts',
@@ -705,52 +715,10 @@ class OperationalRuntimeBridge {
         priority: 10,
       ),
     );
-    _orchestrator.registerProjection(
-      ProjectionRegistration(
-        projectionKey: 'ProjectionDomain.analytics',
-        rebuilder: _rebuildAnalyticsProjection,
-        priority: 10,
-      ),
-    );
 
     debugPrint(
-      '[OperationalRuntimeBridge] Registered projection rebuilders for all domains',
+      '[OperationalRuntimeBridge] Registered projection rebuilders for Staff MVP domains (tables, waiterCalls, staff, alerts)',
     );
-  }
-
-  Future<void> _rebuildOrdersProjection() async {
-    debugPrint('[OperationalRuntimeBridge] Full rebuild: orders');
-    final serverOrders = _store.getAuthoritativeOrders();
-    
-    // Merge with locally-cached draft orders that haven't reached the server yet
-    final repo = _ref.read(ordersRepositoryProvider);
-    final localOrders = await repo.fetchActiveOrders();
-    
-    // Build merged map: server orders take precedence for same IDs, but keep local drafts
-    final mergedMap = <String, Order>{};
-    // Add local active orders first (includes local drafts)
-    for (final order in localOrders) {
-      mergedMap[order.id] = order;
-    }
-    // Server authoritative orders overwrite (they are more up-to-date)
-    for (final order in serverOrders) {
-      // Only exclude truly terminal orders (completed/cancelled)
-      if (order.status != OrderStatus.completed && order.status != OrderStatus.cancelled) {
-        mergedMap[order.id] = order;
-      } else {
-        // Remove terminal orders even if they were in local cache
-        mergedMap.remove(order.id);
-      }
-    }
-    
-    final merged = mergedMap.values.toList();
-    
-    // Update Riverpod Provider for UI
-    _ref.read(ordersProjectionProvider.notifier).updateProjection(merged);
-
-    // Also update offline cache (server-authoritative only — no local drafts in the sync)
-    await repo.syncOrders(serverOrders.where((o) =>
-      o.status != OrderStatus.completed && o.status != OrderStatus.cancelled).toList());
   }
 
   Future<void> _rebuildTablesProjection() async {
@@ -767,20 +735,12 @@ class OperationalRuntimeBridge {
     await repo.syncWaiterCalls(calls); // Implement in WaiterCallsRepository
   }
 
-  Future<void> _rebuildReservationsProjection() async {
-    debugPrint('[OperationalRuntimeBridge] Full rebuild: reservations');
-  }
-
   Future<void> _rebuildStaffProjection() async {
     debugPrint('[OperationalRuntimeBridge] Full rebuild: staff');
   }
 
   Future<void> _rebuildAlertsProjection() async {
     debugPrint('[OperationalRuntimeBridge] Full rebuild: alerts');
-  }
-
-  Future<void> _rebuildAnalyticsProjection() async {
-    debugPrint('[OperationalRuntimeBridge] Full rebuild: analytics');
   }
 }
 

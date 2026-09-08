@@ -4,11 +4,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../routing/app_router.dart';
 import '../core/theme/app_theme.dart';
-import '../core/network/realtime_sync_manager.dart';
 import '../core/runtime/runtime_lifecycle.dart';
 import '../features/alerts/presentation/widgets/non_blocking_alert_overlay.dart';
 import '../core/services/session_service.dart';
 import '../features/auth/presentation/state/auth_notifier.dart';
+import '../features/auth/presentation/state/auth_state.dart';
 
 class OrderlyyApp extends ConsumerStatefulWidget {
   const OrderlyyApp({super.key});
@@ -55,7 +55,7 @@ class _OrderlyyAppState extends ConsumerState<OrderlyyApp> with WidgetsBindingOb
   @override
   Widget build(BuildContext context) {
     // Listen to auth state to start/stop session monitoring
-    ref.listen(authNotifierProvider, (previous, next) {
+    ref.listen<AuthState>(authNotifierProvider, (previous, next) {
       final wasActive = previous?.isShiftStarted == true && previous?.isLocked == false;
       final isActive = next.isShiftStarted && !next.isLocked;
       
@@ -66,8 +66,9 @@ class _OrderlyyAppState extends ConsumerState<OrderlyyApp> with WidgetsBindingOb
       }
     });
 
-    // Initialize Realtime Sync Manager to start receiving updates from admin app
-    ref.read(realtimeSyncManagerProvider);
+    // NOTE: realtimeSyncManagerProvider is NOT eagerly read here.
+    // connectLocal() is triggered exclusively by AuthNotifier.startShift()
+    // after the runtime_token has been persisted to secure storage.
 
     // Initialize Runtime Lifecycle Manager to manage runtime sessions
     ref.read(runtimeLifecycleManagerProvider);

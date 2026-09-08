@@ -34,18 +34,22 @@ class WebSocketRealtimeTransport implements RealtimeTransport {
     _status = RealtimeTransportStatus.connecting;
     try {
       // Read the runtime JWT for the Sec-WebSocket-Protocol auth handshake.
-      // The backend's WebSocketManager.handleUpgrade() extracts and verifies this.
+      // ONLY runtime_token is accepted — device access_token is NOT a
+      // sufficient credential for the realtime channel.
       const secureStorage = SecureLocalStorage();
-      var runtimeToken = await secureStorage.read('runtime_token');
+      final runtimeToken = await secureStorage.read('runtime_token');
+
       if (runtimeToken == null || runtimeToken.isEmpty) {
-        runtimeToken = await secureStorage.read('access_token');
+        _status = RealtimeTransportStatus.disconnected;
+        throw Exception(
+          '[SYNC] Blocked WebSocket connect: runtime_token is absent. '
+          'Staff must complete PIN login before realtime can start.',
+        );
       }
 
-      if (runtimeToken != null && runtimeToken.isNotEmpty) {
-        _channel = WebSocketChannel.connect(url, protocols: [runtimeToken]);
-      } else {
-        _channel = WebSocketChannel.connect(url);
-      }
+      _channel = WebSocketChannel.connect(url, protocols: [runtimeToken]);
+
+      await _channel!.ready;
 
       _subscription = _channel!.stream.listen(
         _onRawMessage,

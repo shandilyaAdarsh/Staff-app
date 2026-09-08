@@ -44,6 +44,7 @@ _TableDto _$TableDtoFromJson(Map<String, dynamic> json) => _TableDto(
   floorId: json['floor_id'] as String?,
   floorName: json['floorName'] as String?,
   customerPaymentIntent: json['customer_payment_intent'] as String?,
+  assignedStaffId: json['assigned_staff_id'] as String?,
 );
 
 Map<String, dynamic> _$TableDtoToJson(_TableDto instance) => <String, dynamic>{
@@ -58,4 +59,5 @@ Map<String, dynamic> _$TableDtoToJson(_TableDto instance) => <String, dynamic>{
   'floor_id': instance.floorId,
   'floorName': instance.floorName,
   'customer_payment_intent': instance.customerPaymentIntent,
+  'assigned_staff_id': instance.assignedStaffId,
 };

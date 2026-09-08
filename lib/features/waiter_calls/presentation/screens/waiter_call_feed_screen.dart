@@ -45,17 +45,6 @@ class _WaiterCallFeedScreenState extends ConsumerState<WaiterCallFeedScreen> {
         : calls.where((c) => c.type == _selectedTypeFilter).toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Waiter Call Feed', style: TextStyle(fontWeight: FontWeight.w900)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_alert_rounded, color: AppColors.primary),
-            onPressed: () => _showAddMockCallDialog(context),
-            tooltip: 'Simulate Guest Call',
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
       body: Column(
         children: [
           _buildFilterChips(isDark),
@@ -354,7 +343,7 @@ class _WaiterCallFeedScreenState extends ConsumerState<WaiterCallFeedScreen> {
                     controller: noteController,
                     decoration: const InputDecoration(
                       labelText: 'Customer Note (Optional)',
-                      hintText: 'e.g. Needs water, bill splitting',
+                      hintText: 'e.g. Needs water',
                     ),
                   ),
                   const SizedBox(height: 12),

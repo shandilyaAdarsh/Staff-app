@@ -46,8 +46,6 @@ class MockTablesRemoteDatasource implements TablesRemoteDatasource {
   @override
   Future<void> mergeTables(List<String> sourceTableIds, String targetTableId) async {}
 
-  @override
-  Future<void> splitTable(String tableId, List<Map<String, dynamic>> splitPartitions) async {}
 }
 
 class MockTablesLocalDatasource implements TablesLocalDatasource {

@@ -11,6 +11,8 @@ enum RuntimeEventType {
   // Tables
   tableUpdate,
   tableDelete,
+  // Waiter assignment (new — emitted by assign_waiter mutation)
+  tableWaiterAssigned,
   // Orders
   orderUpdate,
   orderDelete,
@@ -83,6 +85,8 @@ class RuntimeEvent extends Equatable {
     switch (raw) {
       case 'table_update':        return RuntimeEventType.tableUpdate;
       case 'table_delete':        return RuntimeEventType.tableDelete;
+      // Emitted by assign_waiter mutation — triggers table projection refresh
+      case 'TABLE_WAITER_ASSIGNED': return RuntimeEventType.tableWaiterAssigned;
       case 'order_update':        return RuntimeEventType.orderUpdate;
       case 'order_delete':        return RuntimeEventType.orderDelete;
       case 'waiter_call':         return RuntimeEventType.waiterCall;

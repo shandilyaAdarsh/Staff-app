@@ -88,9 +88,9 @@ class RealtimeSyncManager {
   RealtimeSyncManager(this.ref)
     : _transport = ref.read(realtimeTransportProvider) {
     _eventController.stream.listen(_processSyncEvent);
-    // Defer connection so this provider finishes building before pushing any
-    // state updates into realtimeStateProvider (Riverpod init-phase rule).
-    Future.microtask(connectLocal);
+    // Connection is NOT started automatically.
+    // Call connectLocal() only after runtime_token has been persisted
+    // (i.e., after successful Staff PIN login / startShift).
   }
 
   // ── Public API ────────────────────────────────────────────────────────────
@@ -117,6 +117,7 @@ class RealtimeSyncManager {
         .connect()
         .then((_) {
           if (_intentionalDisconnect) return;
+          if (_transport.status != RealtimeTransportStatus.connected) return;
           // Optimistically mark connected; the first heartbeat will confirm it.
           _onConnected();
         })
@@ -136,6 +137,21 @@ class RealtimeSyncManager {
     _closeChannel();
     _eventController.close();
     debugPrint('[SYNC] Manager disposed.');
+  }
+
+  /// Stop the WebSocket and cancel all timers without closing the event
+  /// stream. Use this on logout so the singleton provider can reconnect
+  /// on the next successful login without needing to be recreated.
+  void disconnectLocal() {
+    debugPrint('[SYNC] disconnectLocal() — stopping realtime, preserving event stream.');
+    _intentionalDisconnect = true;
+    _cancelReconnectTimer();
+    _cancelHeartbeat();
+    _replayTimer?.cancel();
+    _closeChannel();
+    _reconnectAttempts = 0;
+    _connectedAt = null;
+    _updateState(RealtimeConnectionState.reconnecting);
   }
 
   /// Simulates receiving a raw WebSocket message (also used by tests).
@@ -311,7 +327,13 @@ class RealtimeSyncManager {
     );
 
     if (_reconnectAttempts >= _maxReconnectAttempts) {
-      debugPrint('[SYNC] Max reconnect attempts reached. Resetting backoff counter to keep retrying...');
+      debugPrint('[SYNC] Max reconnect attempts reached. Marking as critical.');
+      _updateState(
+        RealtimeConnectionState.critical,
+        attempts: _reconnectAttempts,
+        error: 'Cannot reach server. Check your connection.',
+      );
+      // Reset attempts so it continues trying in the background
       _reconnectAttempts = 1;
     }
 
@@ -323,17 +345,18 @@ class RealtimeSyncManager {
     final delay = _backoffSchedule[delayIndex];
 
     // Move state to reconnecting or degraded depending on attempt count
-    if (_reconnectAttempts >= 3) {
+    if (_reconnectAttempts >= 3 && _reconnectAttempts < _maxReconnectAttempts) {
       _updateState(
         RealtimeConnectionState.degraded,
         attempts: _reconnectAttempts,
         error: 'Connection degraded — some updates may be delayed.',
       );
-    } else {
+    } else if (_reconnectAttempts < 3) {
       _updateState(
         RealtimeConnectionState.reconnecting,
         attempts: _reconnectAttempts,
-        error: 'Connection lost. Reconnecting…',
+        // Passing null clears the error message so we don't show a permanent error immediately
+        error: null,
       );
     }
 

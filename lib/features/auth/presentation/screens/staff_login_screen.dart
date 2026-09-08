@@ -23,7 +23,7 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
   dynamic _matchedStaff;
   bool _isLoading = false;
   String? _localError;
-  
+
   @override
   void initState() {
     super.initState();
@@ -45,7 +45,7 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
 
   Future<void> _triggerLogin() async {
     final employeeId = _employeeIdController.text.trim();
-    
+
     if (!_isEnteringPin) {
       if (employeeId.isEmpty) {
         _employeeIdFocus.requestFocus();
@@ -59,11 +59,13 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
         final notifier = ref.read(authNotifierProvider.notifier);
         // staff list was loaded during app boot if context exists
         final staffList = notifier.mockStaff;
-        
+
         // Let's see if the employeeId exists
         StaffMember? staff;
         try {
-          staff = staffList.firstWhere((s) => s.employeeId == employeeId || s.id == employeeId);
+          staff = staffList.firstWhere(
+            (s) => s.employeeId == employeeId || s.id == employeeId,
+          );
         } catch (_) {
           staff = null;
         }
@@ -71,10 +73,7 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
         if (staff != null) {
           setState(() {
             _isEnteringPin = true;
-            _matchedStaff = {
-              'name': staff!.name,
-              'role': staff!.role.name,
-            };
+            _matchedStaff = {'name': staff!.name, 'role': staff.role.name};
             _isLoading = false;
           });
           await Future.microtask(() => _pinFocus.requestFocus());
@@ -100,13 +99,16 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
         _isLoading = true;
         _localError = null;
       });
-      final success = await ref.read(authNotifierProvider.notifier).login(employeeId, pin);
+      final success = await ref
+          .read(authNotifierProvider.notifier)
+          .login(employeeId, pin);
       setState(() {
         _isLoading = false;
       });
-      if (success && mounted) {
-        context.go('/shift-start');
-      } else if (mounted) {
+      if (!mounted) return;
+      if (success) {
+        context.go('/notifications');
+      } else {
         _pinController.clear();
         _pinFocus.requestFocus();
       }
@@ -116,77 +118,88 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
-    final theme = Theme.of(context);
-    const isDark = false; // Forced light mode
-    
+
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth >= 768;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : const Color(0xFFF8F9FA),
-      appBar: isDesktop ? null : AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: isDark ? Colors.white : const Color(0xFF0F172A)),
-          onPressed: () async {
-            await ref.read(deviceContextStoreProvider).clearContext();
-            if (context.mounted) context.go('/device-registration');
-          },
-        ),
-      ),
-      extendBodyBehindAppBar: true,
-      body: isDesktop ? Center(
-        child: SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1000),
-            child: Padding(
-              padding: const EdgeInsets.all(40.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
+      backgroundColor: const Color(0xFFF8F9FA),
+      appBar: isDesktop
+          ? null
+          : AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: Color(0xFF0F172A),
                 ),
-                clipBehavior: Clip.antiAlias,
-                child: IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(child: _buildLeftSection(isDark)),
-                      Expanded(child: _buildRightSection(isDark, authState)),
-                    ],
+                onPressed: () async {
+                  await ref.read(deviceContextStoreProvider).clearContext();
+                  if (context.mounted) context.go('/device-registration');
+                },
+              ),
+            ),
+      extendBodyBehindAppBar: true,
+      body: isDesktop
+          ? Center(
+              child: SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1000),
+                  child: Padding(
+                    padding: const EdgeInsets.all(40.0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(
+                              alpha: 0.05,
+                            ),
+                            blurRadius: 24,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(child: _buildLeftSection()),
+                            Expanded(
+                              child: _buildRightSection(authState),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
-        ),
-      ) : Stack(
-        children: [
-          Positioned.fill(
-            child: Container(color: isDark ? const Color(0xFF1E293B) : Colors.white),
-          ),
-          _buildMobileBackground(),
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                child: _buildRightSection(isDark, authState),
-              ),
-            ),
-          ),
-        ],
-      ).animate().fadeIn(duration: 400.ms),
+            )
+          : Stack(
+              children: [
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.white,
+                  ),
+                ),
+                _buildMobileBackground(),
+                SafeArea(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      child: _buildRightSection(authState),
+                    ),
+                  ),
+                ),
+              ],
+            ).animate().fadeIn(duration: 400.ms),
     );
   }
 
-  Widget _buildLeftSection(bool isDark) {
+  Widget _buildLeftSection() {
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -214,7 +227,7 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
               icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
               onPressed: () async {
                 await ref.read(deviceContextStoreProvider).clearContext();
-                if (context.mounted) context.go('/device-registration');
+                if (mounted) context.go('/device-registration');
               },
               tooltip: 'Go Back',
             ),
@@ -224,7 +237,11 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.restaurant_rounded, size: 40, color: Colors.white),
+              const Icon(
+                Icons.restaurant_rounded,
+                size: 40,
+                color: Colors.white,
+              ),
               const SizedBox(height: 12),
               Text(
                 'Precision in Every Service.',
@@ -264,8 +281,7 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
     );
   }
 
-  Widget _buildRightSection(bool isDark, AuthState authState) {
-    // theme available via parent build method
+  Widget _buildRightSection(AuthState authState) {
     final displayedError = _localError ?? authState.errorMessage;
 
     return Padding(
@@ -276,7 +292,9 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
         children: [
           // Branding
           Column(
-            crossAxisAlignment: MediaQuery.of(context).size.width >= 768 ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+            crossAxisAlignment: MediaQuery.of(context).size.width >= 768
+                ? CrossAxisAlignment.start
+                : CrossAxisAlignment.center,
             children: [
               Text(
                 'Orderlyy',
@@ -289,15 +307,22 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
               ),
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                  color: const Color(0xFFE2E8F0),
                   borderRadius: BorderRadius.circular(100),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.badge_rounded, size: 16, color: Color(0xFFE31E24)),
+                    const Icon(
+                      Icons.badge_rounded,
+                      size: 16,
+                      color: Color(0xFFE31E24),
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       'STAFF EDITION',
@@ -305,7 +330,7 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 1,
-                        color: isDark ? Colors.white70 : const Color(0xFF475569),
+                        color: const Color(0xFF475569),
                       ),
                     ),
                   ],
@@ -322,7 +347,7 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                color: const Color(0xFF0F172A),
               ),
             ),
             const SizedBox(height: 8),
@@ -332,25 +357,35 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
               keyboardType: TextInputType.text,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 14,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                color: const Color(0xFF0F172A),
               ),
               decoration: InputDecoration(
                 hintText: 'Enter Employee ID',
                 hintStyle: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
-                  color: isDark ? Colors.white54 : const Color(0xFF94A3B8),
+                  color: const Color(0xFF94A3B8),
                 ),
-                prefixIcon: Icon(Icons.person_rounded, color: isDark ? Colors.white54 : const Color(0xFF64748B)),
+                prefixIcon: const Icon(
+                  Icons.person_rounded,
+                  color: Color(0xFF64748B),
+                ),
                 filled: true,
-                fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8F9FA),
-                contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                fillColor: const Color(0xFFF8F9FA),
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 16,
+                  horizontal: 16,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFE2E8F0),
+                  ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFE2E8F0),
+                  ),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -368,7 +403,9 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
               decoration: BoxDecoration(
                 color: const Color(0xFFE31E24).withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE31E24).withValues(alpha: 0.2)),
+                border: Border.all(
+                  color: const Color(0xFFE31E24).withValues(alpha: 0.2),
+                ),
               ),
               child: Row(
                 children: [
@@ -383,14 +420,14 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
                           style: GoogleFonts.plusJakartaSans(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color: const Color(0xFF0F172A),
                           ),
                         ),
                         Text(
                           'Role: ${(_matchedStaff?['role'] as String? ?? 'waiter').toUpperCase()}',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 12,
-                            color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                            color: const Color(0xFF64748B),
                           ),
                         ),
                       ],
@@ -405,7 +442,7 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                color: const Color(0xFF0F172A),
               ),
             ),
             const SizedBox(height: 8),
@@ -417,26 +454,36 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
               maxLength: 4,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 14,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                color: const Color(0xFF0F172A),
               ),
               decoration: InputDecoration(
                 counterText: '',
                 hintText: '••••',
                 hintStyle: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
-                  color: isDark ? Colors.white54 : const Color(0xFF94A3B8),
+                  color: const Color(0xFF94A3B8),
                 ),
-                prefixIcon: Icon(Icons.lock_rounded, color: isDark ? Colors.white54 : const Color(0xFF64748B)),
+                prefixIcon: const Icon(
+                  Icons.lock_rounded,
+                  color: Color(0xFF64748B),
+                ),
                 filled: true,
-                fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8F9FA),
-                contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                fillColor: const Color(0xFFF8F9FA),
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 16,
+                  horizontal: 16,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFE2E8F0),
+                  ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFE2E8F0),
+                  ),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -485,7 +532,10 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
                   const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
                   )
                 else ...[
                   Text(
@@ -497,7 +547,7 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
                   ),
                   const SizedBox(width: 8),
                   const Icon(Icons.arrow_forward_rounded, size: 20),
-                ]
+                ],
               ],
             ),
           ),
@@ -541,14 +591,14 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 16),
           Center(
             child: Text(
               'Secure Staff Portal v2.4',
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 12,
-                color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                color: const Color(0xFF64748B),
               ),
             ),
           ),

@@ -31,6 +31,7 @@ abstract class TableDto with _$TableDto {
     @JsonKey(name: 'floor_id') String? floorId,
     String? floorName,
     @JsonKey(name: 'customer_payment_intent') String? customerPaymentIntent,
+    @JsonKey(name: 'assigned_staff_id') String? assignedStaffId,
   }) = _TableDto;
 
   factory TableDto.fromJson(Map<String, dynamic> json) => _$TableDtoFromJson(json);

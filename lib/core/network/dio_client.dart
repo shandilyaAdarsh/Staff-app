@@ -9,6 +9,23 @@ import '../errors/exceptions.dart';
 import 'cache/dio_cache_interceptor.dart';
 import 'dio_retry_interceptor.dart';
 
+class AuthGuardInterceptor extends Interceptor {
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    final authHeader = options.headers['Authorization']?.toString();
+    if (authHeader == 'Bearer ' || authHeader == 'Bearer null' || authHeader == 'Bearer undefined') {
+      return handler.reject(
+        DioException(
+          requestOptions: options,
+          type: DioExceptionType.cancel,
+          message: 'Local Auth Guard: Prevented request with empty Bearer token.',
+        ),
+      );
+    }
+    return handler.next(options);
+  }
+}
+
 class DioClient {
   final Dio _dio;
   final Talker _talker;
@@ -42,6 +59,9 @@ class DioClient {
         },
       ),
     );
+
+    // Add Auth Guard to prevent empty tokens
+    _dio.interceptors.add(AuthGuardInterceptor());
 
     // Add caching interceptor first to resolve cached items instantly
     _dio.interceptors.add(DioCacheInterceptor(_cacheBox, _talker));

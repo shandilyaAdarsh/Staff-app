@@ -11,6 +11,7 @@ import '../../dtos/table_dto.dart';
 import 'tables_remote_datasource.dart';
 import '../../../../../core/network/dio_client.dart';
 import '../../../../../core/network/secure_storage.dart';
+import '../../../../../core/errors/exceptions.dart';
 
 class TablesRemoteDatasourceImpl implements TablesRemoteDatasource {
   final DioClient _dio;
@@ -34,6 +35,9 @@ class TablesRemoteDatasourceImpl implements TablesRemoteDatasource {
     debugPrint('[TablesRemoteDatasource] getTables called for branch: $_branchId');
     try {
       final token = await _getToken();
+      if (token.isEmpty) {
+        throw const ServerException(message: 'Authentication token is missing. Please log in.');
+      }
       final response = await _dio.get(
         '/api/v1/admin/tables',
         queryParameters: {
@@ -108,11 +112,7 @@ class TablesRemoteDatasourceImpl implements TablesRemoteDatasource {
     debugPrint('[TablesRemoteDatasource] mergeTables: managed via backend lifecycle endpoints');
   }
 
-  @override
-  Future<void> splitTable(
-      String tableId, List<Map<String, dynamic>> splitPartitions) async {
-    debugPrint('[TablesRemoteDatasource] splitTable: managed via backend lifecycle endpoints');
-  }
+
 
   void dispose() {
     _streamController.close();

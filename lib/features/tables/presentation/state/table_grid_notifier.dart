@@ -97,20 +97,5 @@ class TableGridNotifier extends _$TableGridNotifier {
     }
   }
 
-  Future<void> splitTable(String tableId, List<Map<String, dynamic>> splitPartitions) async {
-    final previousState = state.value;
-    state = AsyncData(TableGridState(
-      tables: previousState?.tables ?? [],
-      isLoading: true,
-    ));
 
-    try {
-      await ref.read(tablesRepositoryProvider).splitTable(tableId, splitPartitions);
-    } catch (e) {
-      state = AsyncData(TableGridState(
-        tables: previousState?.tables ?? [],
-        errorMessage: e.toString(),
-      ));
-    }
-  }
 }

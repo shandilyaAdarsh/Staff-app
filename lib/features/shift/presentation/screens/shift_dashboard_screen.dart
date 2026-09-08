@@ -31,8 +31,7 @@ class _WorkloadItem {
     required this.tableLabel,
     required this.orderStatus,
     required this.orderStartedAt,
-    this.slaTargetMinutes = 20,
-  });
+  }) : slaTargetMinutes = 20;
 
   int get elapsedMinutes => DateTime.now().difference(orderStartedAt).inMinutes;
   double get slaProgress => (elapsedMinutes / slaTargetMinutes).clamp(0.0, 1.0);

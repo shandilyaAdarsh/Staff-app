@@ -20,7 +20,7 @@ class TableGridScreen extends ConsumerStatefulWidget {
 }
 
 class _TableGridScreenState extends ConsumerState<TableGridScreen> {
-  String _selectedZone = 'All';
+  String _selectedZone = 'My Tables';
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +29,7 @@ class _TableGridScreenState extends ConsumerState<TableGridScreen> {
 
     final stateAsync = ref.watch(tableGridNotifierProvider);
     final theme = Theme.of(context);
-    const isDark = false; // Forced light mode as requested
+    final isDark = theme.brightness == Brightness.dark;
     
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth >= 768;
@@ -54,7 +54,7 @@ class _TableGridScreenState extends ConsumerState<TableGridScreen> {
                           error: (_, _) => _buildPageHeader(isDark),
                           data: (state) {
                             // Extract unique floor names from tables
-                            final floorNames = <String>{'All'};
+                            final floorNames = <String>{'My Tables', 'All'};
                             for (final t in state.tables) {
                               if (t.floorName != null && t.floorName!.isNotEmpty) {
                                 floorNames.add(t.floorName!);
@@ -100,23 +100,15 @@ class _TableGridScreenState extends ConsumerState<TableGridScreen> {
                             for (final o in liveOrders) { ordersMap[o.id] = o; }
                             for (final o in projectedOrders) { ordersMap[o.id] = o; }
 
-                            // ── Waiter Scoping ──────────────────────────────────────────
                             // Only show orders belonging to the currently logged-in staff.
                             // Orders with empty waiterName are treated as unscoped (visible to all).
                             final authState = ref.watch(authNotifierProvider);
                             final loggedInStaffName = authState.loggedInStaff?.name ?? '';
+                            final loggedInStaffId = authState.loggedInStaff?.id ?? '';
 
                             final activeOrders = ordersMap.values.where((o) {
                               // Exclude completed and cancelled orders from floor layout
                               if (o.status == OrderStatus.completed || o.status == OrderStatus.cancelled) return false;
-                              // If waiterName is set and doesn't match logged-in staff, skip
-                              if (o.waiterName.isNotEmpty &&
-                                  o.waiterName != 'Staff' &&
-                                  o.waiterName != 'John Doe' &&
-                                  loggedInStaffName.isNotEmpty &&
-                                  o.waiterName != loggedInStaffName) {
-                                return false;
-                              }
                               return true;
                             }).toList();
 
@@ -143,10 +135,12 @@ class _TableGridScreenState extends ConsumerState<TableGridScreen> {
                                 ),
                               ),
                               data: (state) {
-                                // Filter tables by selected floor
+                                // Filter tables by selected floor or assignment
                                 final tables = _selectedZone == 'All'
                                     ? state.tables
-                                    : state.tables.where((t) => t.floorName == _selectedZone).toList();
+                                    : _selectedZone == 'My Tables'
+                                        ? state.tables.where((t) => t.assignedStaffId == loggedInStaffId).toList()
+                                        : state.tables.where((t) => t.floorName == _selectedZone).toList();
 
                                 if (tables.isEmpty) {
                                   return Center(
@@ -185,7 +179,7 @@ class _TableGridScreenState extends ConsumerState<TableGridScreen> {
                                       itemCount: tables.length,
                                       itemBuilder: (context, index) {
                                         final table = tables[index];
-                                        return _buildTableCard(table, isDark, activeOrders)
+                                        return _buildTableCard(table, isDark, activeOrders, loggedInStaffId)
                                           .animate()
                                           .fadeIn(delay: (50 * index).ms)
                                           .slideY(begin: 0.1, delay: (50 * index).ms);
@@ -332,44 +326,42 @@ class _TableGridScreenState extends ConsumerState<TableGridScreen> {
     return '${diff.inMinutes}m';
   }
 
-  Widget _buildTableCard(RestaurantTable table, bool isDark, List<Order> activeOrders) {
-    final status = table.status;
-    
-    // Check if the table has any active order currently in the projection
+  Widget _buildTableCard(RestaurantTable table, bool isDark, List<Order> activeOrders, String loggedInStaffId) {
     final hasActiveOrder = activeOrders.any((o) => _isOrderForTable(o, table));
+    final isUnassigned = table.assignedStaffId == null;
+    final isMine = table.assignedStaffId == loggedInStaffId;
 
-    // Map backend statuses to design states
-    // Vacant = available (unless we have active orders, which means occupied)
-    // Occupied = occupied
-    // Calling = needsAttention
-    // Bill Requested = reserved (mocked mapping)
-    
-    if (status == TableStatus.available && !hasActiveOrder) {
-      return _buildVacantCard(table, isDark);
-    } else if (status == TableStatus.needsAttention) {
-      return _buildCallingCard(table, isDark, activeOrders);
-    } else if (table.isPaymentRequested) {
-      return _buildBillRequestedCard(table, isDark, activeOrders);
-    } else if (status == TableStatus.reserved) {
-      return _buildBillRequestedCard(table, isDark, activeOrders);
-    } else {
-      return _buildOccupiedCard(table, isDark, activeOrders);
+    if (!hasActiveOrder) {
+      return _buildAvailableCard(table, isDark);
     }
+    
+    if (isUnassigned) {
+      return _buildOccupiedCard(table, isDark, activeOrders, 'UNASSIGNED\nTAP TO CLAIM', isMine: false, showDetails: false);
+    }
+
+    if (isMine) {
+      if (table.status == TableStatus.needsAttention) {
+        return _buildOccupiedCard(table, isDark, activeOrders, 'CALLING', isMine: true, showDetails: true, isCalling: true);
+      } else if (table.isPaymentRequested || table.status == TableStatus.reserved) {
+        return _buildOccupiedCard(table, isDark, activeOrders, 'BILL REQ', isMine: true, showDetails: true);
+      }
+      return _buildOccupiedCard(table, isDark, activeOrders, 'OCCUPIED', isMine: true, showDetails: true);
+    }
+
+    // Assigned to someone else
+    return _buildOccupiedCard(table, isDark, activeOrders, 'OCCUPIED', isMine: false, showDetails: false);
   }
 
-  Widget _buildVacantCard(RestaurantTable table, bool isDark) {
+  Widget _buildAvailableCard(RestaurantTable table, bool isDark) {
     return InkWell(
       onTap: () => context.push('/tables/${table.id}'),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8F9FA),
+          color: isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isDark ? Colors.white24 : const Color(0xFFE1E3E4),
-            style: BorderStyle.solid, // Using solid as dashed border is complex natively without packages
-          ),
+          border: Border.all(color: const Color(0xFF10B981), width: 1.5),
         ),
         child: Column(
           children: [
@@ -384,30 +376,28 @@ class _TableGridScreenState extends ConsumerState<TableGridScreen> {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white54 : const Color(0xFF545C64),
+                      color: isDark ? Colors.white : const Color(0xFF064E3B),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(100),
-                    border: Border.all(color: isDark ? Colors.white24 : const Color(0xFFBFC8D0)),
+                    border: Border.all(color: const Color(0xFF10B981)),
                   ),
-                  child: Text(
-                    'Vacant',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white54 : const Color(0xFF545C64),
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.check_circle_outline_rounded, size: 10, color: Color(0xFF064E3B)),
+                      const SizedBox(width: 4),
+                      Text('AVAILABLE', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF064E3B))),
+                    ],
                   ),
                 ),
               ],
             ),
-            const Spacer(),
-            Icon(Icons.add_circle_outline_rounded, size: 28, color: isDark ? Colors.white30 : const Color(0xFFBFC8D0)),
             const Spacer(),
           ],
         ),
@@ -415,18 +405,23 @@ class _TableGridScreenState extends ConsumerState<TableGridScreen> {
     );
   }
 
-  Widget _buildOccupiedCard(RestaurantTable table, bool isDark, List<Order> activeOrders) {
+  Widget _buildOccupiedCard(RestaurantTable table, bool isDark, List<Order> activeOrders, String badgeText, {required bool isMine, required bool showDetails, bool isCalling = false}) {
     final amount = _getTableAmount(table, activeOrders);
     final time = _getTableElapsed(table, activeOrders);
     
+    final bgColor = isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFEF2F2);
+    final borderColor = isCalling ? const Color(0xFFFF0000) : const Color(0xFFEF4444);
+    final textColor = isDark ? Colors.white : const Color(0xFF7F1D1D);
+    
     return InkWell(
       onTap: () => context.push('/tables/${table.id}'),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          color: bgColor,
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor, width: 1.5),
           boxShadow: [
             BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, 4)),
           ],
@@ -445,29 +440,30 @@ class _TableGridScreenState extends ConsumerState<TableGridScreen> {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      color: textColor,
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E2E5),
-                    borderRadius: BorderRadius.circular(100),
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFEF4444)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: isDark ? Colors.white54 : const Color(0xFF5D5E61))),
-                      const SizedBox(width: 6),
+                      const Text('??', style: TextStyle(fontSize: 10)),
+                      const SizedBox(width: 4),
                       Text(
-                        'Occupied',
+                        badgeText,
                         style: GoogleFonts.plusJakartaSans(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white70 : const Color(0xFF636467),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: textColor,
                         ),
+                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
@@ -475,232 +471,40 @@ class _TableGridScreenState extends ConsumerState<TableGridScreen> {
               ],
             ),
             const Spacer(),
-            Container(
-              padding: const EdgeInsets.only(top: 16),
-              decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE1E3E4))),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.group_rounded, size: 16, color: isDark ? Colors.white54 : const Color(0xFF5D3F3C)),
-                      const SizedBox(width: 4),
-                      Text('${table.occupiedSeats.isNotEmpty ? table.occupiedSeats.length : table.capacity}', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: isDark ? Colors.white54 : const Color(0xFF5D3F3C))),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Icon(Icons.schedule_rounded, size: 16, color: isDark ? Colors.white54 : const Color(0xFF5D3F3C)),
-                      const SizedBox(width: 4),
-                      Text(time, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: isDark ? Colors.white54 : const Color(0xFF5D3F3C))),
-                    ],
-                  ),
-                  Text(
-                    amount,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCallingCard(RestaurantTable table, bool isDark, List<Order> activeOrders) {
-    return InkWell(
-      onTap: () => context.push('/tables/${table.id}'),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFDAD6),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFBA0013)),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, 4)),
-          ],
-        ),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    table.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF93000A),
-                    ),
-                  ),
+            if (showDetails)
+              Container(
+                padding: const EdgeInsets.only(top: 16),
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: textColor.withValues(alpha: 0.2))),
                 ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFBA0013),
-                    borderRadius: BorderRadius.circular(100),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.campaign_rounded, size: 14, color: Colors.white),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Calling',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.group_rounded, size: 16, color: textColor.withValues(alpha: 0.7)),
+                        const SizedBox(width: 4),
+                        Text('', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: textColor.withValues(alpha: 0.7))),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Icon(Icons.schedule_rounded, size: 16, color: textColor.withValues(alpha: 0.7)),
+                        const SizedBox(width: 4),
+                        Text(time, style: GoogleFonts.plusJakartaSans(fontSize: 12, color: textColor.withValues(alpha: 0.7))),
+                      ],
+                    ),
+                    Text(
+                      amount,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: textColor,
                       ),
-                    ],
-                  ),
-                ).animate(onPlay: (c) => c.repeat(reverse: true)).scale(duration: 800.ms, begin: const Offset(1,1), end: const Offset(1.05, 1.05)),
-              ],
-            ),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.only(top: 16),
-              decoration: const BoxDecoration(
-                border: Border(top: BorderSide(color: Color(0xFFE7BDB8))),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.group_rounded, size: 16, color: Color(0xFF93000A)),
-                      const SizedBox(width: 4),
-                      Text('${table.occupiedSeats.isNotEmpty ? table.occupiedSeats.length : table.capacity}', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF93000A))),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      const Icon(Icons.schedule_rounded, size: 16, color: Color(0xFF93000A)),
-                      const SizedBox(width: 4),
-                      Text(_getTableElapsed(table, activeOrders), style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF93000A))),
-                    ],
-                  ),
-                  Text(
-                    _getTableAmount(table, activeOrders),
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF93000A),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBillRequestedCard(RestaurantTable table, bool isDark, List<Order> activeOrders) {
-    return InkWell(
-      onTap: () => context.push('/tables/${table.id}'),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF334155) : const Color(0xFFDBE4ED),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, 4)),
-          ],
-        ),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    table.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white : const Color(0xFF3F484F),
-                    ),
-                  ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF475569) : const Color(0xFF545C64),
-                    borderRadius: BorderRadius.circular(100),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.receipt_long_rounded, size: 14, color: Colors.white),
-                      const SizedBox(width: 6),
-                      Text(
-                        table.isPaymentRequested ? '${table.customerPaymentIntent?.toUpperCase()} Req.' : 'Bill Req.',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.only(top: 16),
-              decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFBFC8D0))),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.group_rounded, size: 16, color: isDark ? Colors.white : const Color(0xFF3F484F)),
-                      const SizedBox(width: 4),
-                      Text('${table.occupiedSeats.isNotEmpty ? table.occupiedSeats.length : table.capacity}', style: GoogleFonts.plusJakartaSans(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF3F484F))),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Icon(Icons.schedule_rounded, size: 16, color: isDark ? Colors.white : const Color(0xFF3F484F)),
-                      const SizedBox(width: 4),
-                      Text(_getTableElapsed(table, activeOrders), style: GoogleFonts.plusJakartaSans(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF3F484F))),
-                    ],
-                  ),
-                  Text(
-                    _getTableAmount(table, activeOrders),
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white : const Color(0xFF3F484F),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),
@@ -712,19 +516,15 @@ class _TableGridScreenState extends ConsumerState<TableGridScreen> {
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          _buildLegendItem('Vacant', isDark, isDashed: true, color: isDark ? Colors.white54 : const Color(0xFF545C64)),
+          _buildLegendItem('Available', isDark, color: const Color(0xFF10B981)),
           const SizedBox(width: 16),
-          _buildLegendItem('Occupied', isDark, isDashed: false, color: isDark ? Colors.white30 : const Color(0xFFE2E2E5)),
-          const SizedBox(width: 16),
-          _buildLegendItem('Bill Requested', isDark, isDashed: false, color: isDark ? const Color(0xFF334155) : const Color(0xFFDBE4ED)),
-          const SizedBox(width: 16),
-          _buildLegendItem('Calling/Alert', isDark, isDashed: false, color: const Color(0xFFFFDAD6)),
+          _buildLegendItem('Occupied / Unassigned', isDark, color: const Color(0xFFEF4444)),
         ],
       ),
     );
   }
 
-  Widget _buildLegendItem(String label, bool isDark, {required bool isDashed, required Color color}) {
+  Widget _buildLegendItem(String label, bool isDark, {required Color color}) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -733,8 +533,7 @@ class _TableGridScreenState extends ConsumerState<TableGridScreen> {
           height: 12,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: isDashed ? Colors.transparent : color,
-            border: isDashed ? Border.all(color: color) : null,
+            color: color,
           ),
         ),
         const SizedBox(width: 8),

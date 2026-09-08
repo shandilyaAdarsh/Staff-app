@@ -176,12 +176,13 @@ class _BillingPaymentScreenState extends ConsumerState<BillingPaymentScreen> {
                 const SizedBox(height: 32),
 
                 // Checkout Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: StatefulBuilder(
-                    builder: (context, setBtnState) {
-                      bool isProcessing = false;
+                (() {
+                  bool isProcessing = false;
+                  return SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: StatefulBuilder(
+                      builder: (context, setBtnState) {
                       return ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.success,
@@ -228,7 +229,8 @@ class _BillingPaymentScreenState extends ConsumerState<BillingPaymentScreen> {
                       );
                     },
                   ),
-                ),
+                );
+                })(),
               ],
             ),
           );

@@ -19,8 +19,6 @@ import '../features/auth/presentation/state/auth_notifier.dart';
 
 void bootstrap({
   required Environment environment,
-  required String apiBaseUrl,
-  required String websocketUrl,
   required bool enableSentry,
   String? supabaseUrl,
   String? supabaseAnonKey,
@@ -39,8 +37,6 @@ void bootstrap({
     // Initialize environment configurations
     AppConfig.initialize(
       environment: environment,
-      apiBaseUrl: apiBaseUrl,
-      websocketUrl: websocketUrl,
       enableSentry: enableSentry,
     );
 

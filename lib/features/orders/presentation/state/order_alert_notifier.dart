@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/order_alert_model.dart';
 import '../../../../core/network/network_providers.dart';
 import '../../services/order_action_service.dart';
+import '../../../auth/presentation/state/auth_notifier.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // State
@@ -80,7 +81,7 @@ class OrderAlertNotifier extends StateNotifier<OrderAlertState> {
   // Track orders accepted by THIS device so we can target the ready notification
   final Set<String> _myAcceptedOrderIds = {};
 
-  static const Duration _alertTimeout = Duration(seconds: 30);
+
 
   OrderAlertNotifier(this._ref) : super(const OrderAlertState());
 
@@ -230,14 +231,41 @@ class OrderAlertNotifier extends StateNotifier<OrderAlertState> {
     }
   }
 
-  /// Staff accepts the current alert.
+  void dismissAlert(String orderId) {
+    _cancelTimeoutTimer(orderId);
+    state = state.copyWith(
+      queue: state.queue.where((a) => a.orderId != orderId).toList(),
+    );
+  }
+
+  /// Staff accepts the notification and self-assigns to the table.
+  ///
+  /// Calls POST /api/v1/orders/:id/assign_waiter — the dedicated waiter assignment
+  /// mutation. This does NOT modify the kitchen order status.
+  ///
+  /// On success: waiter is assigned in DB, local alert is dismissed.
+  /// On 409 conflict: another waiter claimed the table first — alert is dismissed.
+  /// On other error: returns false so the UI can show an error state.
   Future<bool> acceptAlert(String orderId, int versionNum) async {
     final alert = _findPendingAlert(orderId);
     if (alert == null) return false;
 
     try {
       final actionService = _ref.read(orderActionServiceProvider);
-      await actionService.queueAcceptAlert(orderId, versionNum);
+
+      // Deterministic idempotency key: safe to retry on network failure
+      final idempotencyKey = 'aw_${orderId}_${DateTime.now().millisecondsSinceEpoch}';
+
+      final staffId = _ref.read(authNotifierProvider).loggedInStaff?.id;
+      if (staffId == null) {
+        throw Exception('Cannot assign waiter: No logged-in staff');
+      }
+
+      await actionService.assignWaiter(
+        orderId: orderId,
+        staffId: staffId,
+        idempotencyKey: idempotencyKey,
+      );
 
       // Remember this order was accepted by ME so the ready popup targets only me
       _myAcceptedOrderIds.add(orderId);
@@ -252,7 +280,16 @@ class OrderAlertNotifier extends StateNotifier<OrderAlertState> {
       _removeAlertAfterDelay(orderId);
       return true;
     } catch (e) {
-      debugPrint('[OrderAlert] Failed to accept order $orderId: $e');
+      final msg = e.toString();
+      // 409 = another waiter already took it — dismiss gracefully
+      if (msg.contains('409') || msg.contains('already been assigned') || msg.contains('conflict')) {
+        debugPrint('[OrderAlert] Table for order $orderId already assigned to another waiter — dismissing alert.');
+        _cancelTimeoutTimer(orderId);
+        _updateAlertStatus(orderId, OrderAlertStatus.accepted); // visual dismiss
+        _removeAlertAfterDelay(orderId);
+        return false;
+      }
+      debugPrint('[OrderAlert] Failed to assign waiter for order $orderId: $e');
     }
     return false;
   }

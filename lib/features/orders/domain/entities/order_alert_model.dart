@@ -31,6 +31,7 @@ class IncomingOrderAlert extends Equatable {
   final String alertId;          // Unique per alert (orderId + receivedAt)
   final String orderId;
   final String orderNumber;
+  final String? tableId;
   final String tableNumber;
   final String? assignedStaffId;
   final int itemCount;
@@ -41,11 +42,13 @@ class IncomingOrderAlert extends Equatable {
   final List<AlertOrderItem> items;
   final OrderAlertStatus status;
   final bool isReassignment;
+  final String intent;
 
   const IncomingOrderAlert({
     required this.alertId,
     required this.orderId,
     required this.orderNumber,
+    this.tableId,
     required this.tableNumber,
     this.assignedStaffId,
     required this.itemCount,
@@ -56,6 +59,7 @@ class IncomingOrderAlert extends Equatable {
     required this.items,
     this.status = OrderAlertStatus.pending,
     this.isReassignment = false,
+    this.intent = 'TABLE_ASSIGNMENT_REQUIRED',
   });
 
   factory IncomingOrderAlert.fromPayload(Map<String, dynamic> payload) {
@@ -86,6 +90,7 @@ class IncomingOrderAlert extends Equatable {
       alertId: '${payload['orderId'] ?? payload['id']}_${receivedAt.millisecondsSinceEpoch}',
       orderId: (payload['orderId'] ?? payload['id'])?.toString() ?? '',
       orderNumber: (payload['orderNumber'] ?? payload['order_number'])?.toString() ?? 'N/A',
+      tableId: (payload['tableId'] ?? payload['table_id'])?.toString(),
       tableNumber: (payload['tableLabel'] ?? payload['tableNumber'] ?? payload['table_num'] ?? payload['table_name'])?.toString() ?? 'N/A',
       assignedStaffId: (payload['assignedStaffId'] ?? payload['assigned_waiter_id'] ?? payload['assigned_staff_id'])?.toString(),
       itemCount: parseToInt(payload['itemCount']) ?? itemsList.length,
@@ -96,20 +101,25 @@ class IncomingOrderAlert extends Equatable {
       items: itemsList,
       status: OrderAlertStatus.pending,
       isReassignment: (payload['isReassignment'] as bool?) ?? false,
+      intent: (payload['intent'] ?? 'TABLE_ASSIGNMENT_REQUIRED') as String,
     );
   }
 
   IncomingOrderAlert copyWith({
     OrderAlertStatus? status,
+    String? tableId,
     String? tableNumber,
     int? itemCount,
     int? totalAmountMinor,
     List<AlertOrderItem>? items,
+    bool? isReassignment,
+    String? intent,
   }) {
     return IncomingOrderAlert(
       alertId: alertId,
       orderId: orderId,
       orderNumber: orderNumber,
+      tableId: tableId ?? this.tableId,
       tableNumber: tableNumber ?? this.tableNumber,
       assignedStaffId: assignedStaffId,
       itemCount: itemCount ?? this.itemCount,
@@ -119,7 +129,38 @@ class IncomingOrderAlert extends Equatable {
       receivedAt: receivedAt,
       items: items ?? this.items,
       status: status ?? this.status,
-      isReassignment: isReassignment,
+      isReassignment: isReassignment ?? this.isReassignment,
+      intent: intent ?? this.intent,
+    );
+  }
+
+  factory IncomingOrderAlert.fromMap(Map<String, dynamic> map) {
+    final rawItems = map['items'] as List?;
+    final parsedItems = rawItems != null
+        ? rawItems
+            .map((i) => AlertOrderItem.fromMap(i as Map<String, dynamic>))
+            .toList()
+        : <AlertOrderItem>[];
+
+    final alertId = '${map['orderId']}_${DateTime.now().millisecondsSinceEpoch}';
+
+    return IncomingOrderAlert(
+      alertId: alertId,
+      orderId: map['orderId'] as String? ?? 'UNKNOWN',
+      orderNumber: map['orderNumber'] as String? ?? '---',
+      tableId: map['tableId'] as String?,
+      tableNumber: map['tableNumber'] as String? ?? 'N/A',
+      assignedStaffId: map['assignedStaffId'] as String?,
+      itemCount: (map['itemCount'] as num?)?.toInt() ?? parsedItems.length,
+      totalAmountMinor: (map['totalAmountMinor'] as num?)?.toInt() ?? 0,
+      versionNum: (map['versionNum'] as num?)?.toInt() ?? 1,
+      orderTime: map['acceptedAt'] != null
+          ? DateTime.tryParse(map['acceptedAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+      receivedAt: DateTime.now(),
+      items: parsedItems,
+      isReassignment: map['isReassignment'] == true,
+      intent: (map['intent'] as String?) ?? 'TABLE_ASSIGNMENT_REQUIRED',
     );
   }
 
@@ -135,11 +176,17 @@ class IncomingOrderAlert extends Equatable {
   List<Object?> get props => [
         alertId,
         orderId,
-        status,
-        versionNum,
+        orderNumber,
+        tableId,
+        tableNumber,
+        assignedStaffId,
         itemCount,
         totalAmountMinor,
+        status,
+        versionNum,
         items,
+        isReassignment,
+        intent,
       ];
 }
 
