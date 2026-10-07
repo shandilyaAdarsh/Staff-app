@@ -44,6 +44,9 @@ dependencies:
   json_annotation: ^4.9.0
   equatable: ^2.0.5
 
+  # Error monitoring
+  sentry_flutter: ^8.14.0
+
   # Logging & Debugging
   talker_flutter: ^4.6.0
   talker_dio_logger: ^4.6.0
