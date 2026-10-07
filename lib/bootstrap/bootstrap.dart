@@ -1,5 +1,6 @@
 // lib/bootstrap/bootstrap.dart
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -127,7 +128,16 @@ void bootstrap({
       ),
     );
   }, (error, stack) {
+    // Always log locally so developers can see errors in the console.
     talker.handle(error, stack, '[Bootstrap Error] Unhandled Exception');
+
+    // Only forward to external error reporting in non-debug, Sentry-enabled builds.
+    // This prevents debug-only throws (e.g. test exceptions, dev assertions) from
+    // polluting the production error tracker.
+    if (!kDebugMode && enableSentry) {
+      // Sentry.captureException(error, stackTrace: stack);
+      // Uncomment the line above once SentryFlutter.init() is wired into bootstrap.
+    }
   });
 }
 
