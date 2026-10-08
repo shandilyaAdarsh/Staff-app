@@ -129,9 +129,10 @@ Future<void> bootstrap({
     );
   }
 
+  // Only send errors to Sentry in non-debug production builds.
+  // kDebugMode guard ensures that debug-only throws (e.g. test exceptions,
+  // dev assertions) never reach the production error tracker.
   if (enableSentry && !kDebugMode) {
-    // Production: hand off to SentryFlutter which wraps appRunner in its own
-    // zone and automatically captures all unhandled Flutter/Dart errors.
     await SentryFlutter.init(
       (options) {
         options.dsn = 'https://7c511dd6f66d62ea8cc1e9e1e6a8158d@o4512208763420672.ingest.de.sentry.io/4512209236983888';
@@ -142,8 +143,7 @@ Future<void> bootstrap({
       appRunner: appRunner,
     );
   } else {
-    // Development / Sentry-disabled: run normally and log errors locally only.
-    // Debug-only throws (e.g. test exceptions, dev assertions) never reach Sentry.
+    // Development / Sentry-disabled: log errors locally only.
     runZonedGuarded(appRunner, (error, stack) {
       talker.handle(error, stack, '[Bootstrap Error] Unhandled Exception');
     });
