@@ -8,6 +8,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:talker_flutter/talker_flutter.dart';
 
+import '../core/config/app_config.dart';
+import '../core/config/environment.dart';
+import '../core/network/secure_storage.dart';
+import '../core/network/network_providers.dart';
+import '../core/device/device_fingerprint_provider.dart';
+import '../core/utils/logger.dart';
+import '../app/app.dart';
+import '../app/observers/provider_observer.dart';
+import '../features/auth/presentation/state/auth_notifier.dart';
+
 const _sentryDsn = String.fromEnvironment(
   'SENTRY_DSN',
   defaultValue: 'https://f2bb43028d8bab2e1f4c6f7a20b28591@o4512209236983040.ingest.sentry.io/4512209236983888',
@@ -118,7 +128,10 @@ void bootstrap({
         options.tracesSampleRate = 0.2;
       },
       appRunner: () => runZonedGuarded(appRunner, (error, stack) {
+        // Always log locally so developers can see errors in the console.
         talker.handle(error, stack, '[Bootstrap Error] Unhandled Exception');
+        // Only forward to Sentry in non-debug builds, preventing dev-time
+        // test throws from polluting the production error tracker.
         if (!kDebugMode) {
           Sentry.captureException(error, stackTrace: stack);
         }
@@ -130,3 +143,8 @@ void bootstrap({
     });
   }
 }
+
+// Global provider for shared preferences to inject into other data sources
+final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
+  throw UnimplementedError('SharedPreferences has not been initialized inside Bootstrap.');
+});
