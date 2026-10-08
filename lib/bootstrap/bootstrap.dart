@@ -1,5 +1,6 @@
 // lib/bootstrap/bootstrap.dart
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -143,8 +144,13 @@ void bootstrap({
         options.tracesSampleRate = 0.2;
       },
       appRunner: () => runZonedGuarded(appRunner, (error, stack) {
+        // Always log locally so developers can see errors in the console.
         talker.handle(error, stack, '[Bootstrap Error] Unhandled Exception');
-        Sentry.captureException(error, stackTrace: stack);
+        // Only forward to Sentry in non-debug builds, preventing dev-time
+        // test throws from polluting the production error tracker.
+        if (!kDebugMode) {
+          Sentry.captureException(error, stackTrace: stack);
+        }
       }),
     );
   } else {
