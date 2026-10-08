@@ -2,8 +2,8 @@
 import 'bootstrap/bootstrap.dart';
 import 'core/config/environment.dart';
 
-void main() {
-  bootstrap(
+Future<void> main() async {
+  await bootstrap(
     environment: Environment.dev,
     enableSentry: false,
     supabaseUrl: 'https://mdwryhxnruprtuqonbwy.supabase.co',

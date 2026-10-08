@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:talker_flutter/talker_flutter.dart';
@@ -17,12 +18,12 @@ import '../app/app.dart';
 import '../app/observers/provider_observer.dart';
 import '../features/auth/presentation/state/auth_notifier.dart';
 
-void bootstrap({
+Future<void> bootstrap({
   required Environment environment,
   required bool enableSentry,
   String? supabaseUrl,
   String? supabaseAnonKey,
-}) {
+}) async {
   // Initialize structured logger
   final talker = TalkerFlutter.init(
     settings: TalkerSettings(
@@ -31,7 +32,7 @@ void bootstrap({
     ),
   );
 
-  runZonedGuarded(() async {
+  Future<void> appRunner() async {
     WidgetsFlutterBinding.ensureInitialized();
 
     // Initialize environment configurations
@@ -126,9 +127,23 @@ void bootstrap({
         child: const OrderlyyApp(),
       ),
     );
-  }, (error, stack) {
-    talker.handle(error, stack, '[Bootstrap Error] Unhandled Exception');
-  });
+  }
+
+  if (enableSentry) {
+    await SentryFlutter.init(
+      (options) {
+        options.dsn = 'https://7c511dd6f66d62ea8cc1e9e1e6a8158d@o4512208763420672.ingest.de.sentry.io/4512209236983888';
+        options.environment = environment.name;
+        options.release = 'orderlyy_app@1.0.0+1';
+        options.tracesSampleRate = 0.2;
+      },
+      appRunner: appRunner,
+    );
+  } else {
+    runZonedGuarded(appRunner, (error, stack) {
+      talker.handle(error, stack, '[Bootstrap Error] Unhandled Exception');
+    });
+  }
 }
 
 // Global provider for shared preferences to inject into other data sources
