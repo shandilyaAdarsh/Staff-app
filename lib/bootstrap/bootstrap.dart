@@ -1,5 +1,6 @@
 // lib/bootstrap/bootstrap.dart
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -97,7 +98,6 @@ Future<void> bootstrap({
       }
     }
 
-
     // Create provider container
     final container = ProviderContainer(
       observers: [
@@ -129,7 +129,9 @@ Future<void> bootstrap({
     );
   }
 
-  if (enableSentry) {
+  if (enableSentry && !kDebugMode) {
+    // Production: hand off to SentryFlutter which wraps appRunner in its own
+    // zone and automatically captures all unhandled Flutter/Dart errors.
     await SentryFlutter.init(
       (options) {
         options.dsn = 'https://7c511dd6f66d62ea8cc1e9e1e6a8158d@o4512208763420672.ingest.de.sentry.io/4512209236983888';
@@ -140,6 +142,8 @@ Future<void> bootstrap({
       appRunner: appRunner,
     );
   } else {
+    // Development / Sentry-disabled: run normally and log errors locally only.
+    // Debug-only throws (e.g. test exceptions, dev assertions) never reach Sentry.
     runZonedGuarded(appRunner, (error, stack) {
       talker.handle(error, stack, '[Bootstrap Error] Unhandled Exception');
     });
