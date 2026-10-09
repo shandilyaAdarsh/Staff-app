@@ -142,6 +142,10 @@ void bootstrap({
         options.environment = environment.name;
         options.release = 'orderlyy_app@1.0.0+1';
         options.tracesSampleRate = 0.2;
+        // Drop every event from debug builds, including those captured by
+        // Sentry's own integrations (FlutterError, PlatformDispatcher, zones),
+        // which bypass the kDebugMode guard in the runZonedGuarded handler.
+        options.beforeSend = (event, hint) => kDebugMode ? null : event;
       },
       appRunner: () => runZonedGuarded(appRunner, (error, stack) {
         talker.handle(error, stack, '[Bootstrap Error] Unhandled Exception');
