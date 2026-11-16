@@ -132,7 +132,11 @@ class _ActiveOrdersFeedScreenState extends ConsumerState<ActiveOrdersFeedScreen>
           // Exclude completed/cancelled orders, then scope to logged-in waiter.
           // Orders with empty/generic waiterName are visible to all staff.
           var orders = ordersList.where((o) {
-            if (o.status == OrderStatus.completed || o.status == OrderStatus.cancelled) return false;
+            if (o.status == OrderStatus.delivered ||
+                o.status == OrderStatus.completed ||
+                o.status == OrderStatus.cancelled) {
+              return false;
+            }
             if (o.waiterName.isNotEmpty &&
                 o.waiterName != 'Staff' &&
                 o.waiterName != 'John Doe' &&

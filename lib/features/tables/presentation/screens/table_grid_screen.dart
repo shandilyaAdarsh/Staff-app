@@ -103,12 +103,15 @@ class _TableGridScreenState extends ConsumerState<TableGridScreen> {
                             // Only show orders belonging to the currently logged-in staff.
                             // Orders with empty waiterName are treated as unscoped (visible to all).
                             final authState = ref.watch(authNotifierProvider);
-                            final loggedInStaffName = authState.loggedInStaff?.name ?? '';
                             final loggedInStaffId = authState.loggedInStaff?.id ?? '';
 
                             final activeOrders = ordersMap.values.where((o) {
-                              // Exclude completed and cancelled orders from floor layout
-                              if (o.status == OrderStatus.completed || o.status == OrderStatus.cancelled) return false;
+                              // Exclude terminal orders (delivered, completed, cancelled) from floor layout
+                              if (o.status == OrderStatus.delivered ||
+                                  o.status == OrderStatus.completed ||
+                                  o.status == OrderStatus.cancelled) {
+                                return false;
+                              }
                               return true;
                             }).toList();
 
@@ -278,7 +281,9 @@ class _TableGridScreenState extends ConsumerState<TableGridScreen> {
   }
 
   bool _isOrderForTable(Order o, RestaurantTable table) {
-    if (o.status == OrderStatus.completed || o.status == OrderStatus.cancelled) {
+    if (o.status == OrderStatus.delivered ||
+        o.status == OrderStatus.completed ||
+        o.status == OrderStatus.cancelled) {
       return false;
     }
     final tid = o.tableId.trim();

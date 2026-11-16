@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import 'package:sentry_flutter/sentry_flutter.dart';
+
 import '../../../../core/theme/app_colors.dart';
 import '../state/auth_notifier.dart';
 import '../state/auth_state.dart';
@@ -589,6 +591,46 @@ class _StaffLoginScreenState extends ConsumerState<StaffLoginScreen> {
                   color: const Color(0xFFE31E24),
                 ),
               ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+          // Verify Sentry Setup button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () async {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Testing Sentry... isEnabled: ${Sentry.isEnabled}'),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+                await Sentry.captureMessage('Verify Sentry Setup: staff app test event');
+                final errId = await Sentry.captureException(
+                  StateError('This is test exception from Staff App login screen'),
+                  stackTrace: StackTrace.current,
+                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Sentry Sent! isEnabled=${Sentry.isEnabled}, ID: $errId'),
+                      backgroundColor: Colors.green,
+                      duration: const Duration(seconds: 4),
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2E384D),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              child: const Text('Verify Sentry Setup'),
             ),
           ),
 

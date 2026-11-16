@@ -20,7 +20,7 @@ class BillingPaymentScreen extends ConsumerStatefulWidget {
 
 class _BillingPaymentScreenState extends ConsumerState<BillingPaymentScreen> {
   double _tipPercentage = 0.15;
-  String _paymentMethod = 'Card';
+  String _paymentMethod = 'Cash';
 
   @override
   Widget build(BuildContext context) {
@@ -130,25 +130,32 @@ class _BillingPaymentScreenState extends ConsumerState<BillingPaymentScreen> {
                 const SizedBox(height: 16),
 
                 // Payment Method
-                Text('Payment Gateway Options', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                Text('Payment Tender (V3.11: Cash Supported)', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8.0,
                   runSpacing: 8.0,
                   children: [
-                    ...['Card', 'Cash', 'Mobile Pay'].map((method) {
-                      final isSelected = _paymentMethod == method;
+                    ...[
+                      {'label': 'Cash', 'value': 'Cash', 'enabled': true},
+                      {'label': 'Card (Disabled)', 'value': 'Card', 'enabled': false},
+                      {'label': 'Mobile Pay (Disabled)', 'value': 'Mobile Pay', 'enabled': false},
+                    ].map((item) {
+                      final isSelected = _paymentMethod == item['value'];
+                      final isEnabled = item['enabled'] as bool;
                       return ChoiceChip(
-                          selected: isSelected,
-                          label: Text(method),
-                          onSelected: (selected) {
-                            if (selected) {
-                              setState(() {
-                                _paymentMethod = method;
-                              });
-                            }
-                          },
-                        );
+                        selected: isSelected,
+                        label: Text(item['label'] as String),
+                        onSelected: isEnabled
+                            ? (selected) {
+                                if (selected) {
+                                  setState(() {
+                                    _paymentMethod = item['value'] as String;
+                                  });
+                                }
+                              }
+                            : null,
+                      );
                     }),
                   ],
                 ),

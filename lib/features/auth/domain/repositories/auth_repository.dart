@@ -8,7 +8,6 @@ import '../../../../core/network/secure_storage.dart';
 import '../../../../core/errors/exceptions.dart';
 
 class AuthRepository {
-  // ignore: unused_field
   final SupabaseClient _supabase;
   final DioClient _dio;
 

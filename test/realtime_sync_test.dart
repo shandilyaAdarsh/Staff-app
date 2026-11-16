@@ -107,8 +107,6 @@ void main() {
       
       AppConfig.initialize(
         environment: Environment.dev,
-        apiBaseUrl: 'http://localhost:8000',
-        websocketUrl: 'ws://localhost:8000',
         enableSentry: false,
       );
       

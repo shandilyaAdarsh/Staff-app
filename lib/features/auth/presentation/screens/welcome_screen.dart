@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 
 class WelcomeScreen extends ConsumerWidget {
@@ -197,6 +198,44 @@ class WelcomeScreen extends ConsumerWidget {
                               ),
                             ),
                           ).animate().fadeIn(delay: 1400.ms, duration: 600.ms).slideY(begin: 0.2),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Testing Sentry... isEnabled: ${Sentry.isEnabled}'),
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                                await Sentry.captureMessage('Verify Sentry Setup: staff app test event');
+                                final errId = await Sentry.captureException(
+                                  StateError('This is test exception from Staff App verify button'),
+                                  stackTrace: StackTrace.current,
+                                );
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Sentry Sent! isEnabled=${Sentry.isEnabled}, ID: $errId'),
+                                      backgroundColor: Colors.green,
+                                      duration: const Duration(seconds: 4),
+                                    ),
+                                  );
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF2E384D),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: const Text('Verify Sentry Setup'),
+                            ),
+                          ),
                           const SizedBox(height: 12),
                           Text(
                             'One app for all your restaurant needs.',

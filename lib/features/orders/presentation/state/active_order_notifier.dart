@@ -30,7 +30,11 @@ class ActiveOrderNotifier extends _$ActiveOrderNotifier {
     // Watch all active orders and filter for this table
     _subscription = repository.watchActiveOrders().listen((orders) {
       final tableOrders = orders
-          .where((o) => o.tableId == tableId && o.status != OrderStatus.completed && o.status != OrderStatus.cancelled)
+          .where((o) =>
+              o.tableId == tableId &&
+              o.status != OrderStatus.delivered &&
+              o.status != OrderStatus.completed &&
+              o.status != OrderStatus.cancelled)
           .toList();
       debugPrint('[ActiveOrderNotifier] watchActiveOrders: tableId=$tableId count=${tableOrders.length}');
       for (final o in tableOrders) {
@@ -57,9 +61,7 @@ class ActiveOrderNotifier extends _$ActiveOrderNotifier {
         items: allItems,
         status: tableOrders.any((o) => o.status == OrderStatus.draft)
             ? OrderStatus.draft
-            : (tableOrders.every((o) => o.status == OrderStatus.delivered)
-                ? OrderStatus.delivered
-                : OrderStatus.sent),
+            : OrderStatus.sent,
         createdAt: draftOrder.createdAt,
         updatedAt: DateTime.now(),
         waiterName: draftOrder.waiterName,
@@ -72,7 +74,11 @@ class ActiveOrderNotifier extends _$ActiveOrderNotifier {
     // Initial load from cache
     final initialOrders = await repository.fetchActiveOrders();
     final tableOrders = initialOrders
-        .where((o) => o.tableId == tableId && o.status != OrderStatus.completed && o.status != OrderStatus.cancelled)
+        .where((o) =>
+            o.tableId == tableId &&
+            o.status != OrderStatus.delivered &&
+            o.status != OrderStatus.completed &&
+            o.status != OrderStatus.cancelled)
         .toList();
     debugPrint('[ActiveOrderNotifier] Initial load: tableId=$tableId count=${tableOrders.length}');
     for (final o in tableOrders) {
@@ -96,9 +102,7 @@ class ActiveOrderNotifier extends _$ActiveOrderNotifier {
       items: allItems,
       status: tableOrders.any((o) => o.status == OrderStatus.draft)
           ? OrderStatus.draft
-          : (tableOrders.every((o) => o.status == OrderStatus.delivered)
-              ? OrderStatus.delivered
-              : OrderStatus.sent),
+          : OrderStatus.sent,
       createdAt: draftOrder.createdAt,
       updatedAt: DateTime.now(),
       waiterName: draftOrder.waiterName,
@@ -295,9 +299,10 @@ class ActiveOrderNotifier extends _$ActiveOrderNotifier {
     }
 
     final currentProjection = ref.read(ordersProjectionProvider);
-    final updatedProjection = currentProjection.map((o) => o.id == orderId ? o.copyWith(status: OrderStatus.delivered) : o).toList();
+    final updatedProjection = currentProjection.where((o) => o.id != orderId).toList();
     ref.read(ordersProjectionProvider.notifier).updateProjection(updatedProjection);
     ref.invalidate(tableGridNotifierProvider);
+    state = const AsyncData(null);
   }
 
   Future<void> clearAlert() async {

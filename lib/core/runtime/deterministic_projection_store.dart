@@ -54,7 +54,11 @@ class DeterministicProjectionStore {
 
       case RuntimeEventType.waiterCall:
         final call = _parseWaiterCall(payload);
-        _waiterCalls[call.id] = call;
+        if (call.status == CallStatus.resolved) {
+          _waiterCalls.remove(call.id);
+        } else {
+          _waiterCalls[call.id] = call;
+        }
         break;
       case RuntimeEventType.waiterCallDelete:
         _waiterCalls.remove(payload['id']);
@@ -235,6 +239,7 @@ class DeterministicProjectionStore {
       waiterId: (payload['acknowledged_by'] ?? payload['waiterId']) as String?,
       waiterName: (payload['waiterName'] ?? payload['waiter_name']) as String?,
       isVip: payload['is_vip'] as bool? ?? payload['isVip'] as bool? ?? false,
+      versionNum: (payload['version_num'] as int?) ?? 1,
     );
   }
 }

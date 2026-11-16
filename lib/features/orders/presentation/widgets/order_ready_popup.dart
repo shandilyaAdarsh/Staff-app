@@ -134,9 +134,9 @@ class _OrderReadyPopupOverlayState extends ConsumerState<OrderReadyPopupOverlay>
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
+                          // Dismiss the ready alert overlay synchronously first
+                          widget.onAcknowledge();
                           // Navigate to order details
-                          _dismiss();
-                          // Adjust route depending on app structure
                           context.push('/orders/${widget.alert.orderId}/details');
                         },
                         style: ElevatedButton.styleFrom(

@@ -104,7 +104,9 @@ class OrdersRepositoryImpl implements OrdersRepository {
     final currentCached = await local.getCachedOrderById(order.id);
     final dto = order.toDto();
     
-    if (order.status != OrderStatus.completed && order.status != OrderStatus.cancelled) {
+    if (order.status != OrderStatus.delivered &&
+        order.status != OrderStatus.completed &&
+        order.status != OrderStatus.cancelled) {
       await local.cacheOrder(dto);
     } else {
       final current = await local.getCachedOrders();
@@ -238,6 +240,7 @@ class OrdersRepositoryImpl implements OrdersRepository {
         String targetStatus = 'pending';
         if (order.status == OrderStatus.preparing) { targetStatus = 'preparing'; }
         else if (order.status == OrderStatus.ready) { targetStatus = 'ready'; }
+        else if (order.status == OrderStatus.delivered) { targetStatus = 'delivered'; }
         else if (order.status == OrderStatus.completed) { targetStatus = 'completed'; }
         else if (order.status == OrderStatus.cancelled) { targetStatus = 'cancelled'; }
         
@@ -252,7 +255,7 @@ class OrdersRepositoryImpl implements OrdersRepository {
             });
             
             final responseDto = await remote.transitionStatus(order.id, envelope);
-            if (responseDto.status == 'completed' || responseDto.status == 'cancelled') {
+            if (responseDto.status == 'delivered' || responseDto.status == 'completed' || responseDto.status == 'cancelled') {
               final current = await local.getCachedOrders();
               final filtered = current.where((d) => d.id != order.id).toList();
               await local.cacheOrders(filtered);
@@ -306,7 +309,10 @@ class OrdersRepositoryImpl implements OrdersRepository {
     return local.watchCachedOrders().map((list) {
       return list
           .map((dto) => dto.toDomain())
-          .where((o) => o.status != OrderStatus.completed && o.status != OrderStatus.cancelled)
+          .where((o) =>
+              o.status != OrderStatus.delivered &&
+              o.status != OrderStatus.completed &&
+              o.status != OrderStatus.cancelled)
           .toList();
     });
   }
@@ -371,7 +377,10 @@ class OrdersRepositoryImpl implements OrdersRepository {
       try {
         final remoteItems = await remote.fetchActiveOrders(branchId);
         final activeDtos = remoteItems
-            .where((dto) => dto.status != 'completed' && dto.status != 'cancelled')
+            .where((dto) =>
+                dto.status != 'delivered' &&
+                dto.status != 'completed' &&
+                dto.status != 'cancelled')
             .toList();
         
         // Preserve local draft orders that haven't been sent to server yet
@@ -392,7 +401,10 @@ class OrdersRepositoryImpl implements OrdersRepository {
     final cached = await local.getCachedOrders();
     return cached
         .map((dto) => dto.toDomain())
-        .where((o) => o.status != OrderStatus.completed && o.status != OrderStatus.cancelled)
+        .where((o) =>
+            o.status != OrderStatus.delivered &&
+            o.status != OrderStatus.completed &&
+            o.status != OrderStatus.cancelled)
         .toList();
   }
 }

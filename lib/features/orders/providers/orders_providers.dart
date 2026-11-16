@@ -6,9 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../bootstrap/bootstrap.dart';
 import '../data/datasources/local/orders_local_datasource.dart';
 import '../data/datasources/remote/orders_remote_datasource.dart';
-import '../data/dtos/order_dto.dart';
 import '../data/repositories/orders_repository_impl.dart';
-import '../data/mappers/order_mapper.dart';
 import '../domain/entities/menu_product.dart';
 import '../domain/entities/order.dart';
 import '../domain/repositories/orders_repository.dart';
@@ -65,83 +63,6 @@ class LiveOrdersNotifier extends StateNotifier<AsyncValue<List<Order>>> {
     _init();
   }
 
-  Future<List<Order>> _fetchFromSupabase(String branchId) async {
-    final supabase = Supabase.instance.client;
-    final sevenDaysAgo =
-        DateTime.now().subtract(const Duration(days: 7)).toIso8601String();
-
-    final data = await supabase
-        .from('orders')
-        .select(
-          'id, table_id, status, created_at, updated_at, order_snapshot_id, '
-          'snapshot:order_snapshots!orders_order_snapshot_id_fkey('
-          '  id, items:order_item_snapshots(id, item_name_snapshot, quantity, unit_price_minor, line_total_minor)'
-          ')',
-        )
-        .eq('branch_id', branchId)
-        .gte('created_at', sevenDaysAgo)
-        // NOTE: 'completed' intentionally excluded — completed orders must NOT appear
-        // on the floor layout or active feeds after checkout.
-        .inFilter('status', ['pending', 'accepted', 'preparing', 'ready', 'delivered'])
-        .order('created_at', ascending: false)
-        .limit(200);
-
-    final orders = <Order>[];
-    for (final row in (data as List)) {
-      try {
-        final m = row as Map<String, dynamic>;
-        final snapshot = m['snapshot'] as Map<String, dynamic>?;
-        final rawItems = (snapshot?['items'] as List? ?? []);
-
-        final itemDtos = rawItems.map((i) {
-          final item = i as Map<String, dynamic>;
-          final unitPriceMinor = (item['unit_price_minor'] as num? ?? 0).toInt();
-          return OrderItemDto(
-            id: item['id']?.toString() ?? '',
-            product: MenuProductDto(
-              id: item['id']?.toString() ?? 'unknown',
-              name: item['item_name_snapshot']?.toString() ?? 'Item',
-              priceInCents: unitPriceMinor,
-              category: 'Mains',
-              availableModifiers: [],
-            ),
-            quantity: (item['quantity'] as num? ?? 1).toInt(),
-            selectedModifiers: [],
-            seatNumber: 1,
-            status: 'queued',
-          );
-        }).toList();
-
-        final backendStatus = m['status']?.toString() ?? 'pending';
-        final flutterStatus = switch (backendStatus.toLowerCase()) {
-          'pending' => 'sent',
-          'accepted' => 'sent',
-          'preparing' => 'preparing',
-          'ready' => 'ready',
-          'delivered' => 'delivered',
-          'completed' => 'completed',
-          'cancelled' => 'cancelled',
-          _ => 'sent',
-        };
-
-        final dto = OrderDto(
-          id: m['id']?.toString() ?? '',
-          tableId: m['table_id']?.toString() ?? '',
-          items: itemDtos,
-          status: flutterStatus,
-          createdAt: m['created_at']?.toString() ?? DateTime.now().toIso8601String(),
-          updatedAt: m['updated_at']?.toString(),
-          waiterName: m['staff_name']?.toString() ?? 'Staff',
-          cancelLogs: const [],
-        );
-        orders.add(dto.toDomain());
-      } catch (e) {
-        debugPrint('[LiveOrdersNotifier] row parse error: $e');
-      }
-    }
-    return orders;
-  }
-
   Future<void> _refresh() async {
     if (_disposed) return;
     final authState = _ref.read(authNotifierProvider);
@@ -151,9 +72,10 @@ class LiveOrdersNotifier extends StateNotifier<AsyncValue<List<Order>>> {
       return;
     }
     try {
-      final orders = await _fetchFromSupabase(branch.id);
+      final orders = await _ref.read(ordersRepositoryProvider).fetchActiveOrders();
       if (!_disposed) {
         state = AsyncValue.data(orders);
+        _ref.read(ordersProjectionProvider.notifier).updateProjection(orders);
         debugPrint('[LiveOrdersNotifier] refreshed — ${orders.length} active orders');
       }
     } catch (e, st) {

@@ -86,6 +86,7 @@ class WaiterCallsRepositoryImpl implements WaiterCallsRepository {
     final customerNote = json['notes'] as String?;
     final timestamp = DateTime.parse(json['created_at'] as String? ?? DateTime.now().toIso8601String());
     final waiterId = json['acknowledged_by'] as String?;
+    final rawVersionNum = json['version_num'] as int? ?? 1;
     
     return WaiterCall(
       id: id,
@@ -98,6 +99,7 @@ class WaiterCallsRepositoryImpl implements WaiterCallsRepository {
       waiterId: waiterId,
       waiterName: waiterId != null ? 'John Doe' : null,
       isVip: json['is_vip'] as bool? ?? false,
+      versionNum: rawVersionNum,
     );
   }
 
@@ -135,20 +137,15 @@ class WaiterCallsRepositoryImpl implements WaiterCallsRepository {
 
   @override
   Future<void> submitAcknowledgement(String callId, String waiterId, String waiterName) async {
+    final existingIndex = _inMemoryCalls.indexWhere((c) => c.id == callId);
+    final versionNum = (existingIndex != -1) ? _inMemoryCalls[existingIndex].versionNum : 1;
+
     _updateCallInMemory(callId, status: CallStatus.acknowledged, waiterId: waiterId, waiterName: waiterName);
 
     final isConnected = await networkInfo.isConnected;
-    int versionNum = 1;
 
     if (isConnected) {
       try {
-        final response = await Supabase.instance.client
-            .from('waiter_calls')
-            .select('version_num')
-            .eq('id', callId)
-            .maybeSingle();
-        versionNum = response?['version_num'] as int? ?? 1;
-
         final result = await remote.transitionStatus(callId, {
           'status': 'acknowledged',
           'version_num': versionNum,
@@ -174,36 +171,28 @@ class WaiterCallsRepositoryImpl implements WaiterCallsRepository {
         'callId': callId,
         'waiterId': waiterId,
         'waiterName': waiterName,
-        'versionNum': 1,
+        'versionNum': versionNum,
       });
     }
   }
 
   @override
   Future<void> resolveCall(String callId) async {
-    _updateCallInMemory(callId, status: CallStatus.resolved);
+    final existingIndex = _inMemoryCalls.indexWhere((c) => c.id == callId);
+    final versionNum = (existingIndex != -1) ? _inMemoryCalls[existingIndex].versionNum : 1;
+
+    // Immediately remove from active feed
+    _inMemoryCalls.removeWhere((c) => c.id == callId);
+    _emit();
 
     final isConnected = await networkInfo.isConnected;
-    int versionNum = 1;
 
     if (isConnected) {
       try {
-        final response = await Supabase.instance.client
-            .from('waiter_calls')
-            .select('version_num')
-            .eq('id', callId)
-            .maybeSingle();
-        versionNum = response?['version_num'] as int? ?? 1;
-
-        final result = await remote.transitionStatus(callId, {
+        await remote.transitionStatus(callId, {
           'status': 'resolved',
           'version_num': versionNum,
         });
-
-        final updated = await _mapToDomain(result);
-        _inMemoryCalls.removeWhere((c) => c.id == callId);
-        _inMemoryCalls.add(updated);
-        _emit();
       } catch (e) {
         debugPrint('[WaiterCallsRepositoryImpl] resolveCall online failed, queueing: $e');
         await offlineQueue.queueWrite(action: 'resolveCall', payload: {
@@ -214,7 +203,7 @@ class WaiterCallsRepositoryImpl implements WaiterCallsRepository {
     } else {
       await offlineQueue.queueWrite(action: 'resolveCall', payload: {
         'callId': callId,
-        'versionNum': 1,
+        'versionNum': versionNum,
       });
     }
   }
@@ -282,11 +271,15 @@ class WaiterCallsRepositoryImpl implements WaiterCallsRepository {
 
   @override
   Future<void> applyRemoteCallUpdate(WaiterCall call) async {
-    final idx = _inMemoryCalls.indexWhere((c) => c.id == call.id);
-    if (idx != -1) {
-      _inMemoryCalls[idx] = call;
+    if (call.status == CallStatus.resolved) {
+      _inMemoryCalls.removeWhere((c) => c.id == call.id);
     } else {
-      _inMemoryCalls.add(call);
+      final idx = _inMemoryCalls.indexWhere((c) => c.id == call.id);
+      if (idx != -1) {
+        _inMemoryCalls[idx] = call;
+      } else {
+        _inMemoryCalls.add(call);
+      }
     }
     _emit();
   }
@@ -300,7 +293,7 @@ class WaiterCallsRepositoryImpl implements WaiterCallsRepository {
   @override
   Future<void> syncWaiterCalls(List<WaiterCall> calls) async {
     _inMemoryCalls.clear();
-    _inMemoryCalls.addAll(calls);
+    _inMemoryCalls.addAll(calls.where((c) => c.status != CallStatus.resolved));
     _emit();
   }
 
@@ -317,7 +310,9 @@ class WaiterCallsRepositoryImpl implements WaiterCallsRepository {
         final List<WaiterCall> fetchedCalls = [];
         for (final row in list) {
           final call = await _mapToDomain(row);
-          fetchedCalls.add(call);
+          if (call.status != CallStatus.resolved) {
+            fetchedCalls.add(call);
+          }
         }
 
         _inMemoryCalls.clear();

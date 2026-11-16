@@ -24,12 +24,34 @@ const _sentryDsn = String.fromEnvironment(
   defaultValue: 'https://f2bb43028d8bab2e1f4c6f7a20b28591@o4512209236983040.ingest.sentry.io/4512209236983888',
 );
 
-void bootstrap({
+/// Flutter engine hot-restart artifacts in debug builds that shouldn't pollute Sentry.
+const _debugHotRestartSignatures = <String>[
+  'Trying to render a disposed EngineFlutterView',
+  'Zone mismatch',
+];
+
+SentryEvent? _filterSentryEvents(SentryEvent event, Hint hint) {
+  if (kDebugMode) {
+    final messages = <String>[
+      event.message?.formatted ?? '',
+      ...?event.exceptions?.map((e) => e.value ?? ''),
+      event.throwable?.toString() ?? '',
+    ];
+
+    if (messages.any((m) => _debugHotRestartSignatures.any(m.contains))) {
+      return null;
+    }
+  }
+  return event;
+}
+
+Future<void> bootstrap({
   required Environment environment,
   required bool enableSentry,
+  String? sentryDsn,
   String? supabaseUrl,
   String? supabaseAnonKey,
-}) {
+}) async {
   // Initialize structured logger
   final talker = TalkerFlutter.init(
     settings: TalkerSettings(
@@ -55,7 +77,7 @@ void bootstrap({
     // Initialize Supabase instance using SecureTokenStorage (Keychain/Keystore wrapper)
     await Supabase.initialize(
       url: supabaseUrl ?? 'https://placeholder.supabase.co',
-      anonKey: anonKey ?? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder',
+      anonKey: supabaseAnonKey ?? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder',
       authOptions: const FlutterAuthClientOptions(
         localStorage: SecureLocalStorage(),
       ),
@@ -99,7 +121,11 @@ void bootstrap({
         talker.error('[Supabase] Failed to recover stored session: $e');
         // If recovery fails (e.g. expired token), force a clean session
         // so the Supabase client is in a defined unauthenticated state.
-        try { await client.auth.signOut(); } catch (_) {}
+        try {
+          await client.auth.signOut();
+        } catch (signOutError) {
+          talker.warning('[Supabase] Failed clean signout during session recovery: $signOutError');
+        }
       }
     }
 
@@ -135,29 +161,22 @@ void bootstrap({
     );
   }
 
-  if (enableSentry) {
-    SentryFlutter.init(
+  final resolvedDsn = sentryDsn ?? _sentryDsn;
+
+  if (enableSentry && resolvedDsn.isNotEmpty) {
+    await SentryFlutter.init(
       (options) {
-        options.dsn = _sentryDsn;
+        options.dsn = resolvedDsn;
         options.environment = environment.name;
         options.release = 'orderlyy_app@1.0.0+1';
-        options.tracesSampleRate = 0.2;
-        // Drop every event from debug builds, including those captured by
-        // Sentry's own integrations (FlutterError, PlatformDispatcher, zones),
-        // which bypass the kDebugMode guard in the runZonedGuarded handler.
-        options.beforeSend = (event, hint) => kDebugMode ? null : event;
+        options.tracesSampleRate = kDebugMode ? 1.0 : 0.2;
+        options.debug = kDebugMode;
+        options.beforeSend = _filterSentryEvents;
       },
-      appRunner: () => runZonedGuarded(appRunner, (error, stack) {
-        talker.handle(error, stack, '[Bootstrap Error] Unhandled Exception');
-        if (!kDebugMode) {
-          Sentry.captureException(error, stackTrace: stack);
-        }
-      }),
+      appRunner: appRunner,
     );
   } else {
-    runZonedGuarded(appRunner, (error, stack) {
-      talker.handle(error, stack, '[Bootstrap Error] Unhandled Exception');
-    });
+    await appRunner();
   }
 }
 

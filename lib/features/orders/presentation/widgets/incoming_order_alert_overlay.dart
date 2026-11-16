@@ -266,15 +266,13 @@ class _IncomingOrderAlertOverlayState
     await HapticFeedback.heavyImpact();
     setState(() => _isAccepting = true);
     
-    if (alert.intent == 'NEW_ORDER_FOR_MY_TABLE') {
+    if (alert.intent == 'NEW_ORDER_FOR_MY_TABLE' || alert.intent == 'NEW_ORDER_ASSIGNED_TO_OTHER') {
       // Just dismiss the notification and optionally navigate. We don't assign.
       ref.read(orderAlertNotifierProvider.notifier).dismissAlert(alert.orderId);
       widget.onAccepted();
       if (alert.tableId != null && mounted) {
         unawaited(context.push('/tables/${alert.tableId}'));
       }
-
-
     } else {
       // TABLE_ASSIGNMENT_REQUIRED (or fallback): attempt to assign waiter
       final success = await ref
@@ -391,7 +389,12 @@ class _IncomingOrderAlertOverlayState
 
   Widget _buildHeaderBanner(IncomingOrderAlert alert) {
     final isNewOrderForMe = alert.intent == 'NEW_ORDER_FOR_MY_TABLE';
-    final bgColor = isNewOrderForMe ? const Color(0xFF1D4ED8) : const Color(0xFFE31E24);
+    final isAssignedToOther = alert.intent == 'NEW_ORDER_ASSIGNED_TO_OTHER';
+    final bgColor = isNewOrderForMe 
+        ? const Color(0xFF1D4ED8) 
+        : isAssignedToOther 
+            ? const Color(0xFF475569) 
+            : const Color(0xFFE31E24);
     return Container(
       width: double.infinity,
       color: bgColor,
@@ -410,7 +413,9 @@ class _IncomingOrderAlertOverlayState
             child: Text(
               isNewOrderForMe
                   ? 'New Order on Your Table'
-                  : (alert.isReassignment ? 'Order Passed to You' : 'New Order Received!'),
+                  : isAssignedToOther
+                      ? 'New Order (Assigned to Staff)'
+                      : (alert.isReassignment ? 'Order Passed to You' : 'New Order Received!'),
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -831,19 +836,36 @@ class _IncomingOrderAlertOverlayState
 
   Widget _buildActionButtons(IncomingOrderAlert alert) {
     final isNewOrderForMe = alert.intent == 'NEW_ORDER_FOR_MY_TABLE';
+    final isAssignedToOther = alert.intent == 'NEW_ORDER_ASSIGNED_TO_OTHER';
+
+    final buttonLabel = isNewOrderForMe
+        ? 'VIEW ORDER'
+        : isAssignedToOther
+            ? 'ACKNOWLEDGE'
+            : 'ACCEPT & CLAIM';
+
+    final buttonColor = isNewOrderForMe
+        ? const Color(0xFF1D4ED8)
+        : isAssignedToOther
+            ? const Color(0xFF475569)
+            : const Color(0xFF16A34A);
+
+    final buttonIcon = isNewOrderForMe
+        ? Icons.visibility_rounded
+        : isAssignedToOther
+            ? Icons.done_all_rounded
+            : Icons.check_circle_rounded;
 
     return Column(
       children: [
-        // Primary button: ACCEPT & CLAIM (green) or VIEW ORDER (blue)
+        // Primary button
         SizedBox(
           width: double.infinity,
           height: 52,
           child: ElevatedButton(
             onPressed: _isAccepting ? null : () => _onAccept(alert),
             style: ElevatedButton.styleFrom(
-              backgroundColor: isNewOrderForMe
-                  ? const Color(0xFF1D4ED8)
-                  : const Color(0xFF16A34A),
+              backgroundColor: buttonColor,
               disabledBackgroundColor: const Color(0xFFCBD5E1),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               elevation: 0,
@@ -858,13 +880,13 @@ class _IncomingOrderAlertOverlayState
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        isNewOrderForMe ? Icons.visibility_rounded : Icons.check_circle_rounded,
+                        buttonIcon,
                         color: Colors.white,
                         size: 20,
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        isNewOrderForMe ? 'VIEW ORDER' : 'ACCEPT & CLAIM',
+                        buttonLabel,
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -877,7 +899,7 @@ class _IncomingOrderAlertOverlayState
         ),
 
         // Pass button — only for unassigned tables
-        if (!isNewOrderForMe) ...[
+        if (!isNewOrderForMe && !isAssignedToOther) ...[
           const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,

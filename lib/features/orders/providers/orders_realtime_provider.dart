@@ -51,18 +51,23 @@ final ordersRealtimeProvider = Provider<void>((ref) {
         orderAlertNotifier.enqueueAlert(event.payload);
       } else if (status == 'ready' || status == 'ready_for_pickup') {
         final orderId = (event.payload['id'] ?? event.payload['orderId'])?.toString() ?? '';
-        final isMyOrder = orderId.isNotEmpty
-            ? orderAlertNotifier.isMyAcceptedOrder(orderId)
-            : true;
+        final assignedStaffId = (event.payload['assigned_staff_id'] ??
+                                 event.payload['assigned_waiter_id'] ??
+                                 event.payload['assignedStaffId'] ??
+                                 event.payload['acceptedByStaffId'])?.toString();
+        final currentStaffId = staff.id;
+        final isMyOrder = orderAlertNotifier.isMyAcceptedOrder(orderId) ||
+            (assignedStaffId != null && assignedStaffId == currentStaffId) ||
+            assignedStaffId == null; // Unassigned table/order: broadcast to all staff
 
         if (isMyOrder) {
-          debugPrint('[ordersRealtimeProvider] Ready alert for MY order $orderId — showing popup.');
+          debugPrint('[ordersRealtimeProvider] Ready alert for order $orderId — showing popup.');
           alertService.playOrderReadyAlert();
           orderAlertNotifier.enqueueReadyAlert(event.payload);
         } else {
-          debugPrint('[ordersRealtimeProvider] Ready alert for order $orderId — not mine, skipping.');
+          debugPrint('[ordersRealtimeProvider] Ready alert for order $orderId — assigned to other staff ($assignedStaffId), skipping.');
         }
-      } else if (status == 'cancelled' || status == 'rejected') {
+      } else if (status == 'cancelled' || status == 'rejected' || status == 'delivered' || status == 'completed') {
         final orderId = (event.payload['id'] ?? event.payload['orderId'])?.toString() ?? '';
         if (orderId.isNotEmpty) {
           orderAlertNotifier.dismissAlertForOrder(orderId);

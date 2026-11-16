@@ -32,6 +32,7 @@ import 'replay_recovery_coordinator.dart';
 import 'invalidation_coordinator.dart';
 import 'projection_rebuild_engine.dart';
 import '../network/realtime_sync_manager.dart';
+import '../../features/auth/domain/entities/staff_member.dart';
 import '../../features/auth/presentation/state/auth_notifier.dart';
 import '../../features/orders/providers/orders_realtime_provider.dart';
 import '../../core/network/network_providers.dart';
@@ -242,20 +243,25 @@ class OperationalRuntimeBridge {
         await _ref.read(tableGridNotifierProvider.notifier).refreshTables();
         break;
       case RuntimeEventType.orderDelete:
+        await _store.applyValidatedEvent(event);
+        break;
       case RuntimeEventType.tableUpdate:
       case RuntimeEventType.tableDelete:
+        await _store.applyValidatedEvent(event);
+        await _ref.read(tableGridNotifierProvider.notifier).refreshTables();
+        break;
       case RuntimeEventType.waiterCall:
       case RuntimeEventType.waiterCallDelete:
+        await _store.applyValidatedEvent(event);
+        final calls = _store.getAuthoritativeWaiterCalls();
+        await _ref.read(waiterCallsRepositoryProvider).syncWaiterCalls(calls);
+        break;
 
       case RuntimeEventType.waitlistUpdate:
       case RuntimeEventType.waitlistDelete:
       case RuntimeEventType.staffPresenceUpdate:
       case RuntimeEventType.staffPresenceDelete:
         await _store.applyValidatedEvent(event);
-        if (event.type == RuntimeEventType.waiterCall || event.type == RuntimeEventType.waiterCallDelete) {
-          final calls = _store.getAuthoritativeWaiterCalls();
-          await _ref.read(waiterCallsRepositoryProvider).syncWaiterCalls(calls);
-        }
         break;
 
       // ── Kitchen Domain ────────────────────────────────────────────────────
@@ -271,10 +277,11 @@ class OperationalRuntimeBridge {
         );
         break;
 
-      // ── Order Placement Events (update projection, no alert popup) ──────────
+      // ── Order Placement Events (update projection and alert waiters) ──────────
       case RuntimeEventType.orderAssigned:
       case RuntimeEventType.orderReassigned:
         await _store.applyValidatedEvent(event);
+        await _handleOrderAlertEvent(event);
         break;
 
       // ── KDS / Status Transition Alert Domain ──────────────────────────────
@@ -326,10 +333,17 @@ class OperationalRuntimeBridge {
     final payload = Map<String, dynamic>.from(event.payload);
     final alertService = _ref.read(orderAlertServiceProvider);
     
+    // Check role eligibility: only service/waiter staff receive incoming order alert overlays
+    final loggedInStaff = _ref.read(authNotifierProvider).loggedInStaff;
+    if (loggedInStaff != null && loggedInStaff.role == StaffRole.kdsOperator) {
+      debugPrint('[OperationalRuntimeBridge] Staff role is kdsOperator — skipping waiter order alert overlay.');
+      return;
+    }
+    
     // Backend sends 'assignedStaffId' for ORDER_READY_FOR_PICKUP/ORDER_PREPARING
     // and 'acceptedByStaffId' for ORDER_ACCEPTED — check both.
     final assignedStaffId = (payload['assignedStaffId'] ?? payload['acceptedByStaffId']) as String?;
-    final currentStaffId = _ref.read(authNotifierProvider).loggedInStaff?.id;
+    final currentStaffId = loggedInStaff?.id;
 
     if (event.type == RuntimeEventType.orderReadyForPickup) {
       // Only notify the waiter who accepted this order on this device.
@@ -360,30 +374,34 @@ class OperationalRuntimeBridge {
       await _enrichAlertPayload(payload);
       unawaited(alertService.playOrderReadyAlert());
       _ref.read(orderAlertNotifierProvider.notifier).enqueueReadyAlert(payload);
-    } else if (event.type == RuntimeEventType.orderAccepted || event.type == RuntimeEventType.orderPreparing) {
+    } else if (event.type == RuntimeEventType.orderAccepted ||
+        event.type == RuntimeEventType.orderPreparing ||
+        event.type == RuntimeEventType.orderAssigned ||
+        event.type == RuntimeEventType.orderReassigned) {
       if (assignedStaffId == null) {
         // Unassigned table: Broadcast to all staff to claim
         debugPrint('[OperationalRuntimeBridge] ${event.type.name} — Table unassigned. Broadcasting TABLE_ASSIGNMENT_REQUIRED alert.');
         payload['intent'] = 'TABLE_ASSIGNMENT_REQUIRED';
-        // Backend ORDER_ACCEPTED payload is already complete (items, total, tableNumber).
-        // Enrichment is skipped to avoid a redundant authenticated API call.
+        await _enrichAlertPayload(payload);
         unawaited(alertService.playNewOrderAlert());
         _ref.read(orderAlertNotifierProvider.notifier).enqueueAlert(payload);
       } else if (assignedStaffId == currentStaffId) {
         // Already assigned to ME: targeted new-order notification (no claim button)
         debugPrint('[OperationalRuntimeBridge] ${event.type.name} — Table assigned to ME. Enqueuing NEW_ORDER_FOR_MY_TABLE alert.');
         payload['intent'] = 'NEW_ORDER_FOR_MY_TABLE';
-        // Backend ORDER_ACCEPTED payload is already complete (items, total, tableNumber).
-        // Enrichment is skipped to avoid a redundant authenticated API call.
+        await _enrichAlertPayload(payload);
         unawaited(alertService.playNewOrderAlert());
         _ref.read(orderAlertNotifierProvider.notifier).enqueueAlert(payload);
       } else {
-        // Assigned to someone else: ignore completely
-        debugPrint('[OperationalRuntimeBridge] ${event.type.name} — Table assigned to another staff ($assignedStaffId). Ignoring.');
-        return;
+        // Assigned to another staff member: notify for branch-wide situational awareness
+        debugPrint('[OperationalRuntimeBridge] ${event.type.name} — Table assigned to another staff ($assignedStaffId). Enqueuing NEW_ORDER_ASSIGNED_TO_OTHER alert.');
+        payload['intent'] = 'NEW_ORDER_ASSIGNED_TO_OTHER';
+        await _enrichAlertPayload(payload);
+        unawaited(alertService.playNewOrderAlert());
+        _ref.read(orderAlertNotifierProvider.notifier).enqueueAlert(payload);
       }
     } else {
-      // ORDER_ASSIGNED and other alerts — use assignedStaffId targeting
+      // Fallback for any other alerts — use assignedStaffId targeting
       if (assignedStaffId != null && assignedStaffId != currentStaffId) {
         debugPrint(
           '[OperationalRuntimeBridge] ${event.type.name} for staff $assignedStaffId, not me ($currentStaffId). Ignoring.',
@@ -523,8 +541,12 @@ class OperationalRuntimeBridge {
       case 'floor_analytics_delta':
         return RuntimeEventType.floorAnalyticsDelta;
       case 'order_assigned':
+      case 'order.assigned':
+      case 'NEW_ORDER_ALERT':
+      case 'new_order_alert':
         return RuntimeEventType.orderAssigned;
       case 'order_reassigned':
+      case 'order.reassigned':
         return RuntimeEventType.orderReassigned;
       case 'ORDER_ACCEPTED':
       case 'order_accepted':

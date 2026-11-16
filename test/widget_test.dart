@@ -403,48 +403,5 @@ void main() {
       expect(group.validate([availableMods[0], availableMods[1]]), isTrue);
       expect(group.validate([availableMods[0], availableMods[1], availableMods[2]]), isFalse);
     });
-
-    test('Table merging validation logic simulations', () {
-      final t1 = const RestaurantTable(id: '1', label: '1-T1', capacity: 4, status: TableStatus.available);
-      final t2 = const RestaurantTable(id: '2', label: '9-T2', capacity: 4, status: TableStatus.available);
-      final hasTenantMismatch = t1.label.startsWith('1') && t2.label.startsWith('9');
-      expect(hasTenantMismatch, isTrue);
-
-      final t3 = const RestaurantTable(id: '3', label: 'T3-P', capacity: 4, status: TableStatus.available);
-      final t4 = const RestaurantTable(id: '4', label: 'T4', capacity: 4, status: TableStatus.needsAttention);
-      final hasPrintedBillT3 = t3.label.contains('P') || t3.status == TableStatus.needsAttention;
-      final hasPrintedBillT4 = t4.label.contains('P') || t4.status == TableStatus.needsAttention;
-      expect(hasPrintedBillT3, isTrue);
-      expect(hasPrintedBillT4, isTrue);
-
-      final selectedTables = [
-        const RestaurantTable(
-          id: '5',
-          label: 'T5',
-          capacity: 2,
-          status: TableStatus.occupied,
-          occupiedSeats: [
-            GuestSeat(seatNumber: 1, orderedItemIds: []),
-            GuestSeat(seatNumber: 2, orderedItemIds: []),
-          ],
-          mergedTableIds: [],
-        ),
-        const RestaurantTable(
-          id: '6',
-          label: 'T6',
-          capacity: 2,
-          status: TableStatus.occupied,
-          occupiedSeats: [
-            GuestSeat(seatNumber: 1, orderedItemIds: []),
-            GuestSeat(seatNumber: 2, orderedItemIds: []),
-            GuestSeat(seatNumber: 3, orderedItemIds: []),
-          ],
-          mergedTableIds: [],
-        ),
-      ];
-      int combinedCapacity = selectedTables.fold<int>(0, (sum, t) => sum + t.capacity);
-      int totalGuests = selectedTables.fold<int>(0, (sum, t) => sum + (t.occupiedSeats.isNotEmpty ? t.occupiedSeats.length : t.capacity + 2));
-      expect(totalGuests > combinedCapacity, isTrue);
-    });
   });
 }

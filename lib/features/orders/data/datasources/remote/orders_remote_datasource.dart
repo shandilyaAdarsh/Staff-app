@@ -1,6 +1,6 @@
-// lib/features/orders/data/datasources/remote/orders_remote_datasource.dart
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../../../core/network/dio_client.dart';
 import '../../../../../../core/network/secure_storage.dart';
@@ -24,12 +24,20 @@ class OrdersRemoteDatasourceImpl implements OrdersRemoteDatasource {
       final token = await secureStorage.read('runtime_token');
       final sessionToken = Supabase.instance.client.auth.currentSession?.accessToken;
       final authToken = (token != null && token.isNotEmpty) ? token : sessionToken;
+
+      final prefs = await SharedPreferences.getInstance();
+      final tenantId = prefs.getString('device_tenant_id');
+
+      final headers = <String, String>{};
       if (authToken != null && authToken.isNotEmpty) {
-        return Options(
-          headers: {
-            'Authorization': 'Bearer $authToken',
-          },
-        );
+        headers['Authorization'] = 'Bearer $authToken';
+      }
+      if (tenantId != null && tenantId.isNotEmpty) {
+        headers['x-tenant-id'] = tenantId;
+      }
+
+      if (headers.isNotEmpty) {
+        return Options(headers: headers);
       }
     } catch (_) {}
     return null;
@@ -43,6 +51,7 @@ class OrdersRemoteDatasourceImpl implements OrdersRemoteDatasource {
         '/api/v1/orders',
         queryParameters: {
           'branchId': branchId,
+          'active': 'true',
         },
         options: options?.copyWith(extra: {'skip_cache': true}) ?? Options(extra: {'skip_cache': true}),
       );

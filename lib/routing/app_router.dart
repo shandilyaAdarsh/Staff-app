@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/observers/routing_observer.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/theme/app_colors.dart';
 import '../features/tables/presentation/screens/table_grid_screen.dart';
@@ -17,9 +18,7 @@ import '../features/auth/presentation/screens/staff_login_screen.dart';
 import '../features/auth/presentation/screens/session_lock_screen.dart';
 import '../core/storage/device_context_store.dart';
 
-import '../features/waiter_calls/presentation/screens/waiter_call_feed_screen.dart';
 import '../features/waiter_calls/presentation/screens/waiter_call_details_screen.dart';
-import '../features/notifications/presentation/screens/notification_center_screen.dart';
 import '../features/notifications/presentation/state/notifications_provider.dart';
 import '../features/waiter_calls/presentation/state/waiter_calls_providers.dart';
 // Volume II — Screen imports
@@ -30,6 +29,11 @@ import '../features/realtime/domain/entities/realtime_state_model.dart';
 import '../core/widgets/realtime_banner.dart';
 import '../core/network/realtime_sync_manager.dart';
 import '../features/orders/presentation/widgets/incoming_order_alert_overlay.dart';
+import '../features/orders/presentation/screens/order_details_screen.dart';
+import '../features/billing/presentation/screens/billing_payment_screen.dart';
+import '../features/billing/presentation/screens/receipt_preview_screen.dart';
+import '../features/profile/presentation/screens/developer_dashboard_screen.dart';
+import '../features/realtime/presentation/screens/operational_recovery_screen.dart';
 
 // Derived provider: count of active (unresolved) waiter calls for badge display
 final activeWaiterCallsCountProvider = Provider<int>((ref) {
@@ -65,7 +69,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/splash',
     debugLogDiagnostics: true,
     refreshListenable: notifier,
-    observers: [AppRoutingObserver()],
+    observers: [
+      AppRoutingObserver(),
+      SentryNavigatorObserver(),
+    ],
     redirect: (context, state) {
       final authState = ref.read(authNotifierProvider);
       final loc = state.uri.path;
@@ -128,13 +135,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         return null;
       }
 
-      // Removed the shift-start redirect since the screen is removed
-      // and login auto-starts the shift.
-
-      // If logged in, shift started, operational, and not locked...
-
-      // Profile setup / onboarding wizard bypassed for this phase.
-
       // Block access to auth configuration screens
       final isAuthScreen =
           loc == '/device-registration' ||
@@ -175,44 +175,85 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SessionLockScreen(),
       ),
       // Profile Setup Route Removed
+      // Outer ShellRoute: keeps OrderAlertListener alive across all operational screens
       ShellRoute(
         builder: (context, state, child) {
-          return NavigationShellLayout(child: child);
+          return OrderAlertListener(child: child);
         },
         routes: [
-          GoRoute(
-            path: '/notifications',
-            name: 'notifications',
-            builder: (context, state) => const CombinedNotificationsScreen(),
+          ShellRoute(
+            builder: (context, state, child) {
+              return NavigationShellLayout(child: child);
+            },
+            routes: [
+              GoRoute(
+                path: '/notifications',
+                name: 'notifications',
+                builder: (context, state) => const CombinedNotificationsScreen(),
+              ),
+              GoRoute(
+                path: '/tables',
+                name: 'tables',
+                builder: (context, state) => const TableGridScreen(),
+              ),
+              GoRoute(
+                path: '/profile',
+                name: 'profile',
+                builder: (context, state) => const StaffProfileScreen(),
+              ),
+            ],
           ),
           GoRoute(
-            path: '/tables',
-            name: 'tables',
-            builder: (context, state) => const TableGridScreen(),
+            path: '/tables/:id',
+            name: 'table-detail',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return TableDetailScreen(tableId: id);
+            },
           ),
           GoRoute(
-            path: '/profile',
-            name: 'profile',
-            builder: (context, state) => const StaffProfileScreen(),
+            path: '/waiter-calls/:id',
+            name: 'waiter-call-details',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return WaiterCallDetailsScreen(callId: id);
+            },
+          ),
+          GoRoute(
+            path: '/orders/:id/details',
+            name: 'order-details',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return OrderDetailsScreen(orderId: id);
+            },
+          ),
+          GoRoute(
+            path: '/tables/:id/pay',
+            name: 'table-pay',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return BillingPaymentScreen(tableId: id);
+            },
+          ),
+          GoRoute(
+            path: '/tables/:id/receipt-preview',
+            name: 'table-receipt-preview',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return ReceiptPreviewScreen(tableId: id);
+            },
+          ),
+          GoRoute(
+            path: '/developer',
+            name: 'developer-dashboard',
+            builder: (context, state) => const DeveloperDashboardScreen(),
+          ),
+          GoRoute(
+            path: '/realtime/recovery',
+            name: 'realtime-recovery',
+            builder: (context, state) => const OperationalRecoveryScreen(),
           ),
         ],
-      ),
-      GoRoute(
-        path: '/tables/:id',
-        name: 'table-detail',
-        builder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return TableDetailScreen(tableId: id);
-        },
-      ),
-      // Profile is now inside ShellRoute
-      GoRoute(
-        path: '/waiter-calls/:id',
-        name: 'waiter-call-details',
-        builder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return WaiterCallDetailsScreen(callId: id);
-        },
       ),
     ],
   );
@@ -263,19 +304,17 @@ class NavigationShellLayout extends ConsumerWidget {
       builder: (context, constraints) {
         final isDesktop = constraints.maxWidth >= 800;
 
-        final bodyContent = OrderAlertListener(
-          child: Stack(
-            children: [
-              child,
-              RealtimeBanner(
-                state: mapState(realtimeState.connectionState),
-                reconnectAttempt: realtimeState.reconnectAttempts,
-                onRetry: () {
-                  ref.read(realtimeSyncManagerProvider).connectLocal();
-                },
-              ),
-            ],
-          ),
+        final bodyContent = Stack(
+          children: [
+            child,
+            RealtimeBanner(
+              state: mapState(realtimeState.connectionState),
+              reconnectAttempt: realtimeState.reconnectAttempts,
+              onRetry: () {
+                ref.read(realtimeSyncManagerProvider).connectLocal();
+              },
+            ),
+          ],
         );
 
         final scaffold = Scaffold(

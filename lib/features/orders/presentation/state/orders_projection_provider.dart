@@ -11,6 +11,7 @@ class OrdersProjectionNotifier extends StateNotifier<List<Order>> {
   void updateProjection(List<Order> orders) {
     final active = orders
         .where((o) =>
+            o.status != OrderStatus.delivered &&
             o.status != OrderStatus.completed &&
             o.status != OrderStatus.cancelled)
         .toList();

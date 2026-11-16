@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -25,11 +28,36 @@ android {
         versionName = flutter.versionName
     }
 
+    val keystorePropertiesFile = rootProject.file("key.properties")
+    val keystoreProperties = Properties()
+    if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+    }
+
+    signingConfigs {
+        create("release") {
+            keyAlias = System.getenv("ORDERLII_KEY_ALIAS") ?: keystoreProperties.getProperty("keyAlias")
+            keyPassword = System.getenv("ORDERLII_KEY_PASSWORD") ?: keystoreProperties.getProperty("keyPassword")
+            storeFile = if (System.getenv("ORDERLII_KEYSTORE_PATH") != null) {
+                file(System.getenv("ORDERLII_KEYSTORE_PATH"))
+            } else if (keystoreProperties.getProperty("storeFile") != null) {
+                file(keystoreProperties.getProperty("storeFile"))
+            } else null
+            storePassword = System.getenv("ORDERLII_STORE_PASSWORD") ?: keystoreProperties.getProperty("storePassword")
+        }
+    }
+
     buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+        debug {
             signingConfig = signingConfigs.getByName("debug")
+        }
+        release {
+            val releaseSigning = signingConfigs.getByName("release")
+            val isReleaseBuild = gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) }
+            if (isReleaseBuild && (releaseSigning.storeFile == null || !releaseSigning.storeFile!!.exists())) {
+                throw GradleException("RELEASE BUILD REJECTED: Production signing keystore not found. Valid production signing credentials (key.properties or ORDERLII_* environment variables) are strictly required for release builds. Debug-signing fallback is prohibited.")
+            }
+            signingConfig = releaseSigning
         }
     }
 }

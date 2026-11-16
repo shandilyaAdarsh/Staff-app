@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/order.dart';
@@ -44,6 +45,16 @@ class OrderDetailsScreen extends ConsumerWidget {
             appBar: AppBar(
               backgroundColor: const Color(0xFF0F0F1A),
               title: const Text('Order Details'),
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/tables');
+                  }
+                },
+              ),
             ),
             body: const Center(child: Text('Order not found.')),
           );
@@ -132,7 +143,13 @@ class _OrderDetailsContent extends ConsumerWidget {
             backgroundColor: isDark ? const Color(0xFF0A0A14) : const Color(0xFFF3F4F8),
             surfaceTintColor: Colors.transparent,
             leading: IconButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/tables');
+                }
+              },
               icon: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(

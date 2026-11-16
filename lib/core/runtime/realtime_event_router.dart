@@ -60,7 +60,9 @@ class RealtimeEventRouter {
         type == RuntimeEventType.orderReassigned ||
         type == RuntimeEventType.orderAccepted ||
         type == RuntimeEventType.orderPreparing ||
-        type == RuntimeEventType.orderReadyForPickup;
+        type == RuntimeEventType.orderReadyForPickup ||
+        type == RuntimeEventType.waiterCall ||
+        type == RuntimeEventType.waiterCallDelete;
   }
 
   /// Whether the event carries the backend server epoch (Unix ms) and should

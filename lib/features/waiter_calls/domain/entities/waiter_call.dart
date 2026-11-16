@@ -25,6 +25,7 @@ class WaiterCall {
   final String? waiterId;
   final String? waiterName;
   final bool isVip;
+  final int versionNum;
 
   const WaiterCall({
     required this.id,
@@ -37,6 +38,7 @@ class WaiterCall {
     this.waiterId,
     this.waiterName,
     this.isVip = false,
+    this.versionNum = 1,
   });
 
   bool get isUrgent {
@@ -80,6 +82,7 @@ class WaiterCall {
     String? waiterId,
     String? waiterName,
     bool? isVip,
+    int? versionNum,
   }) {
     return WaiterCall(
       id: id ?? this.id,
@@ -92,6 +95,7 @@ class WaiterCall {
       waiterId: waiterId ?? this.waiterId,
       waiterName: waiterName ?? this.waiterName,
       isVip: isVip ?? this.isVip,
+      versionNum: versionNum ?? this.versionNum,
     );
   }
 }

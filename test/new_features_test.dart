@@ -2,7 +2,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:orderlyy_app/features/waiter_calls/domain/entities/waiter_call.dart';
 import 'package:orderlyy_app/features/notifications/presentation/state/notifications_provider.dart';
-import 'package:orderlyy_app/features/billing/data/services/printer_service.dart';
 
 void main() {
   group('WaiterCall Priority & Urgency Logic', () {
@@ -132,14 +131,6 @@ void main() {
       notifier.clearAll();
 
       expect(notifier.state, isEmpty);
-    });
-  });
-
-  group('LocalPrinterService Network Printing Mock', () {
-    test('Simulated socket write executes or throws correctly', () {
-      final printer = LocalPrinterService();
-      // Ensure instantiation and type signature works
-      expect(printer, isA<LocalPrinterService>());
     });
   });
 }

@@ -20,7 +20,7 @@ class CombinedNotificationsScreen extends ConsumerWidget {
             ],
           ),
         ),
-        body: TabBarView(
+        body: const TabBarView(
           children: [
             WaiterCallFeedScreen(),
             NotificationCenterScreen(),
