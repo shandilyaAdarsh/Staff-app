@@ -107,10 +107,13 @@ class OrderActionService {
     try {
       const secureStorage = SecureLocalStorage();
       final runtimeToken = await secureStorage.read('runtime_token');
+      final accessToken = await secureStorage.read('access_token');
       final sessionToken = Supabase.instance.client.auth.currentSession?.accessToken;
       final authToken = (runtimeToken != null && runtimeToken.isNotEmpty)
           ? runtimeToken
-          : sessionToken;
+          : (accessToken != null && accessToken.isNotEmpty)
+              ? accessToken
+              : sessionToken;
       if (authToken != null && authToken.isNotEmpty) {
         return Options(headers: {'Authorization': 'Bearer $authToken'});
       }

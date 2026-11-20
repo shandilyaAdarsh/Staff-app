@@ -55,8 +55,11 @@ class TableDetailScreen extends ConsumerWidget {
               (t) => t.id == tableId,
               orElse: () => RestaurantTable(id: tableId, label: tableId, capacity: 4, status: TableStatus.unknown),
             );
+            final label = table.label.toLowerCase().startsWith('table')
+                ? table.label
+                : 'Table ${table.label}';
             return Text(
-              'Table ${table.label}',
+              label,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
@@ -202,7 +205,7 @@ class TableDetailScreen extends ConsumerWidget {
     final isUnassigned = table.assignedStaffId == null;
     final isAssignedToOther = !isUnassigned && table.assignedStaffId != loggedInStaffId;
 
-    if (isAssignedToOther) {
+    if (isAssignedToOther && activeTableOrders.isNotEmpty) {
       return Center(
         child: Text(
           'This table is assigned to another staff member.\nOrder details are hidden.',
@@ -334,7 +337,7 @@ class TableDetailScreen extends ConsumerWidget {
     // Authoritative backend reconciliation: if bill is loaded, use exact backend grand total
     final billAsync = ref.watch(tableBillProvider(table.id));
     final bill = billAsync.asData?.value;
-    if (bill != null && bill['grand_total_minor'] != null) {
+    if (bill != null && bill['status'] != 'VOIDED' && bill['grand_total_minor'] != null) {
       final grandTotalMinor = (bill['grand_total_minor'] as num).toDouble();
       final currencyCode = bill['currency_code']?.toString() ?? 'INR';
       final currencySymbol = currencyCode == 'USD' ? '\$' : '₹';
@@ -819,7 +822,7 @@ class _AuthoritativeBillCard extends ConsumerWidget {
       ),
       error: (err, stack) => const SizedBox.shrink(),
       data: (bill) {
-        if (bill == null) return const SizedBox.shrink();
+        if (bill == null || bill['status'] == 'VOIDED') return const SizedBox.shrink();
 
         final billNumber = bill['bill_number']?.toString() ?? 'N/A';
         final grandTotalMinor = (bill['grand_total_minor'] as num?)?.toDouble() ?? 0.0;
@@ -853,22 +856,22 @@ class _AuthoritativeBillCard extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.receipt_long_rounded, color: Color(0xFFE31E24), size: 22),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Authoritative Bill #$billNumber',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                        ),
+                  const Icon(Icons.receipt_long_rounded, color: Color(0xFFE31E24), size: 22),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Authoritative Bill #$billNumber',
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
                       ),
-                    ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(

@@ -22,8 +22,13 @@ class OrdersRemoteDatasourceImpl implements OrdersRemoteDatasource {
     try {
       const secureStorage = SecureLocalStorage();
       final token = await secureStorage.read('runtime_token');
+      final accessToken = await secureStorage.read('access_token');
       final sessionToken = Supabase.instance.client.auth.currentSession?.accessToken;
-      final authToken = (token != null && token.isNotEmpty) ? token : sessionToken;
+      final authToken = (token != null && token.isNotEmpty)
+          ? token
+          : (accessToken != null && accessToken.isNotEmpty)
+              ? accessToken
+              : sessionToken;
 
       final prefs = await SharedPreferences.getInstance();
       final tenantId = prefs.getString('device_tenant_id');

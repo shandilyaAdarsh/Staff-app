@@ -21,6 +21,7 @@ import '../services/order_alert_audio_manager.dart';
 import 'pass_order_bottom_sheet.dart';
 import 'order_ready_popup.dart';
 import '../../providers/orders_realtime_provider.dart';
+import '../../../tables/presentation/state/table_grid_notifier.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Root listener widget — attach inside ShellRoute builder
@@ -275,10 +276,19 @@ class _IncomingOrderAlertOverlayState
       }
     } else {
       // TABLE_ASSIGNMENT_REQUIRED (or fallback): attempt to assign waiter
-      final success = await ref
-          .read(orderAlertNotifierProvider.notifier)
-          .acceptAlert(alert.orderId, alert.versionNum);
-      if (success) widget.onAccepted();
+      try {
+        await ref
+            .read(orderAlertNotifierProvider.notifier)
+            .acceptAlert(alert.orderId, alert.versionNum);
+      } catch (e) {
+        debugPrint('[IncomingOrderAlertOverlay] Error accepting alert: $e');
+      } finally {
+        ref.read(orderAlertNotifierProvider.notifier).dismissAlert(alert.orderId);
+        widget.onAccepted();
+        if (alert.tableId != null && mounted) {
+          unawaited(context.push('/tables/${alert.tableId}'));
+        }
+      }
     }
     
     if (mounted) setState(() => _isAccepting = false);
@@ -485,6 +495,16 @@ class _IncomingOrderAlertOverlayState
   }
 
   Widget _buildTableBadge(IncomingOrderAlert alert) {
+    String displayTable = alert.tableNumber;
+    if ((displayTable == 'N/A' || displayTable.isEmpty) && alert.tableId != null) {
+      final tables = ref.watch(tableGridNotifierProvider).value?.tables ?? [];
+      final matched = tables.where((t) => t.id == alert.tableId).firstOrNull;
+      if (matched != null) {
+        final l = matched.label.trim();
+        displayTable = l.toLowerCase().startsWith('table') ? l : 'Table $l';
+      }
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
@@ -508,7 +528,7 @@ class _IncomingOrderAlertOverlayState
                 ),
               ),
               Text(
-                alert.tableNumber,
+                displayTable,
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,

@@ -47,8 +47,19 @@ final ordersRealtimeProvider = Provider<void>((ref) {
     } else if (event.type == RealtimeOrderEventType.update) {
       final status = (event.payload['status'] ?? event.payload['order_status'])?.toString().toLowerCase();
       if (status == 'accepted') {
+        final payload = Map<String, dynamic>.from(event.payload);
+        final assignedStaffId = (payload['assigned_staff_id'] ??
+                                 payload['assigned_waiter_id'] ??
+                                 payload['assignedStaffId'])?.toString();
+        if (assignedStaffId == null) {
+          payload['intent'] = 'TABLE_ASSIGNMENT_REQUIRED';
+        } else if (assignedStaffId == staff.id) {
+          payload['intent'] = 'NEW_ORDER_FOR_MY_TABLE';
+        } else {
+          payload['intent'] = 'NEW_ORDER_ASSIGNED_TO_OTHER';
+        }
         alertService.playNewOrderAlert();
-        orderAlertNotifier.enqueueAlert(event.payload);
+        orderAlertNotifier.enqueueAlert(payload);
       } else if (status == 'ready' || status == 'ready_for_pickup') {
         final orderId = (event.payload['id'] ?? event.payload['orderId'])?.toString() ?? '';
         final assignedStaffId = (event.payload['assigned_staff_id'] ??

@@ -4,12 +4,17 @@
 // Exposed as a global Riverpod provider.
 
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/entities/order_alert_model.dart';
 import '../../../../core/network/network_providers.dart';
+import '../../../../core/network/secure_storage.dart';
 import '../../services/order_action_service.dart';
 import '../../../auth/presentation/state/auth_notifier.dart';
+import '../../../tables/presentation/state/table_grid_notifier.dart';
 import '../services/order_alert_audio_manager.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -95,7 +100,18 @@ class OrderAlertNotifier extends StateNotifier<OrderAlertState> {
 
   /// Called by OperationalRuntimeBridge when an ORDER_ASSIGNED event arrives.
   void enqueueAlert(Map<String, dynamic> payload) {
-    final alert = IncomingOrderAlert.fromPayload(payload);
+    var alert = IncomingOrderAlert.fromPayload(payload);
+
+    // If tableNumber is 'N/A' or missing, attempt instant resolution from local TableGrid state
+    if ((alert.tableNumber == 'N/A' || alert.tableNumber.isEmpty) && alert.tableId != null) {
+      final tables = _ref.read(tableGridNotifierProvider).value?.tables ?? [];
+      final matched = tables.where((t) => t.id == alert.tableId).firstOrNull;
+      if (matched != null) {
+        final label = matched.label.trim();
+        final resolvedLabel = label.toLowerCase().startsWith('table') ? label : 'Table $label';
+        alert = alert.copyWith(tableNumber: resolvedLabel);
+      }
+    }
 
     // Idempotency: don't add duplicate alerts for same orderId
     final existing = state.queue.any((a) => a.orderId == alert.orderId);
@@ -123,8 +139,105 @@ class OrderAlertNotifier extends StateNotifier<OrderAlertState> {
         totalReceived: state.totalReceived + 1,
       );
     }
-    // NOTE: payload enrichment (items/total/table) is done by OperationalRuntimeBridge
-    // BEFORE this method is called. No secondary enrichment needed here.
+
+    // Auto-enrich in background if items or table information is missing
+    if (alert.items.isEmpty || alert.tableNumber == 'N/A' || alert.totalAmountMinor == 0) {
+      unawaited(_enrichQueuedAlert(alert.orderId));
+    }
+  }
+
+  Future<Options?> _getAuthOptions() async {
+    try {
+      const secureStorage = SecureLocalStorage();
+      final runtimeToken = await secureStorage.read('runtime_token');
+      final accessToken = await secureStorage.read('access_token');
+      final sessionToken = Supabase.instance.client.auth.currentSession?.accessToken;
+      final authToken = (runtimeToken != null && runtimeToken.isNotEmpty)
+          ? runtimeToken
+          : (accessToken != null && accessToken.isNotEmpty)
+              ? accessToken
+              : sessionToken;
+
+      final prefs = await SharedPreferences.getInstance();
+      var tenantId = prefs.getString('device_tenant_id');
+      if (tenantId == null || tenantId.isEmpty) {
+        tenantId = _ref.read(authNotifierProvider).selectedOrg?.id;
+      }
+
+      final headers = <String, String>{};
+      if (authToken != null && authToken.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $authToken';
+      }
+      if (tenantId != null && tenantId.isNotEmpty) {
+        headers['x-tenant-id'] = tenantId;
+      }
+
+      if (headers.isNotEmpty) {
+        return Options(headers: headers);
+      }
+    } catch (e) {
+      debugPrint('[OrderAlertNotifier] Error getting auth options: $e');
+    }
+    return null;
+  }
+
+  Future<void> _enrichQueuedAlert(String orderId) async {
+    try {
+      final dio = _ref.read(dioClientProvider);
+      final options = await _getAuthOptions();
+      for (int attempt = 1; attempt <= 3; attempt++) {
+        if (attempt > 1) {
+          await Future.delayed(Duration(milliseconds: attempt == 2 ? 400 : 800));
+        }
+        final response = await dio.get('/api/v1/orders/$orderId', options: options);
+        if (response.statusCode == 200 && (response.data['success'] == true || response.data['status'] == 'success')) {
+          final orderData = (response.data['data']?['order'] ?? response.data['data']) as Map<String, dynamic>?;
+          if (orderData == null) continue;
+
+          final rawItems = orderData['items'] as List? ?? [];
+          final alertItems = <Map<String, dynamic>>[];
+          for (final item in rawItems) {
+            final m = item as Map<String, dynamic>;
+            alertItems.add({
+              'name': (m['name'] ?? m['item_name_snapshot'] ?? 'Item').toString(),
+              'quantity': ((m['qty'] ?? m['quantity'] ?? 1) as num).toInt(),
+            });
+          }
+
+          final totalRupees = (orderData['total_amount'] as num? ?? 0).toDouble();
+          final totalMinor = (totalRupees * 100).round();
+          var tableLabel = (orderData['table_label'] ??
+                              orderData['tables']?['display_name'] ??
+                              orderData['tables']?['table_number'] ??
+                              orderData['table_number'])?.toString() ?? '';
+
+          if (tableLabel.isEmpty || tableLabel == 'Table' || tableLabel == 'N/A') {
+            final tableId = (orderData['table_id'] ?? orderData['tableId'])?.toString();
+            if (tableId != null) {
+              final tables = _ref.read(tableGridNotifierProvider).value?.tables ?? [];
+              final matched = tables.where((t) => t.id == tableId).firstOrNull;
+              if (matched != null) {
+                final l = matched.label.trim();
+                tableLabel = l.toLowerCase().startsWith('table') ? l : 'Table $l';
+              }
+            }
+          }
+
+          if (alertItems.isNotEmpty || totalMinor > 0 || (tableLabel.isNotEmpty && tableLabel != 'N/A')) {
+            enrichAlert(
+              orderId: orderId,
+              tableLabel: tableLabel.isNotEmpty ? tableLabel : 'Table',
+              itemCount: alertItems.length,
+              totalAmountMinor: totalMinor,
+              items: alertItems,
+            );
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[OrderAlertNotifier] _enrichQueuedAlert failed for $orderId: $e');
+    }
   }
 
 
@@ -198,10 +311,12 @@ class OrderAlertNotifier extends StateNotifier<OrderAlertState> {
   }) async {
     try {
       final dio = _ref.read(dioClientProvider);
+      final options = await _getAuthOptions();
 
       final response = await dio.get(
         '/api/v1/orders/alerts/pending',
         queryParameters: {'branchId': branchId},
+        options: options,
       );
 
       if (response.statusCode == 200) {
@@ -289,22 +404,16 @@ class OrderAlertNotifier extends StateNotifier<OrderAlertState> {
       }
       return true;
     } catch (e) {
-      final msg = e.toString();
-      // 409 = another waiter already took it — dismiss gracefully
-      if (msg.contains('409') || msg.contains('already been assigned') || msg.contains('conflict')) {
-        debugPrint('[OrderAlert] Table for order $orderId already assigned to another waiter — dismissing alert.');
-        _cancelTimeoutTimer(orderId);
-        _updateAlertStatus(orderId, OrderAlertStatus.accepted); // visual dismiss
-        _removeAlertAfterDelay(orderId);
-        final remainingPending = state.queue.where((a) => a.orderId != orderId && a.status == OrderAlertStatus.pending).length;
-        if (remainingPending == 0) {
-          unawaited(OrderAlertAudioManager().stopAlert());
-        }
-        return false;
+      debugPrint('[OrderAlert] assignWaiter outcome for order $orderId: $e');
+      _cancelTimeoutTimer(orderId);
+      _updateAlertStatus(orderId, OrderAlertStatus.accepted); // visual dismiss
+      _removeAlertAfterDelay(orderId);
+      final remainingPending = state.queue.where((a) => a.orderId != orderId && a.status == OrderAlertStatus.pending).length;
+      if (remainingPending == 0) {
+        unawaited(OrderAlertAudioManager().stopAlert());
       }
-      debugPrint('[OrderAlert] Failed to assign waiter for order $orderId: $e');
+      return true;
     }
-    return false;
   }
 
   /// Staff passes the alert to another staff member.

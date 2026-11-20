@@ -82,16 +82,28 @@ class IncomingOrderAlert extends Equatable {
         parseToInt(payload['totalAmountMinor'] ?? payload['total_amount_minor']) ??
         (() {
           final rawPrice = payload['total_price'] ?? payload['total_amount'];
-          return rawPrice is num ? (rawPrice * 100).round() : 0;
+          if (rawPrice is num) return (rawPrice * 100).round();
+          if (rawPrice is String) {
+            final parsed = double.tryParse(rawPrice);
+            if (parsed != null) return (parsed * 100).round();
+          }
+          return 0;
         })();
 
     final receivedAt = DateTime.now();
+    final rawTable = payload['tableLabel'] ??
+        payload['tableNumber'] ??
+        payload['table_label'] ??
+        payload['tables']?['display_name'] ??
+        payload['tables']?['table_number'] ??
+        payload['table_num'] ??
+        payload['table_name'];
     return IncomingOrderAlert(
       alertId: '${payload['orderId'] ?? payload['id']}_${receivedAt.millisecondsSinceEpoch}',
       orderId: (payload['orderId'] ?? payload['id'])?.toString() ?? '',
       orderNumber: (payload['orderNumber'] ?? payload['order_number'])?.toString() ?? 'N/A',
       tableId: (payload['tableId'] ?? payload['table_id'])?.toString(),
-      tableNumber: (payload['tableLabel'] ?? payload['tableNumber'] ?? payload['table_num'] ?? payload['table_name'])?.toString() ?? 'N/A',
+      tableNumber: rawTable?.toString() ?? 'N/A',
       assignedStaffId: (payload['assignedStaffId'] ?? payload['assigned_waiter_id'] ?? payload['assigned_staff_id'])?.toString(),
       itemCount: parseToInt(payload['itemCount']) ?? itemsList.length,
       totalAmountMinor: resolvedTotalMinor,

@@ -148,6 +148,15 @@ class WebSocketRealtimeTransport implements RealtimeTransport {
     try {
       final jsonPayload = jsonDecode(payload) as Map<String, dynamic>;
 
+      final type = jsonPayload['type'] as String?;
+      if (type == 'server_ping' || type == 'ping') {
+        _channel?.sink.add(jsonEncode({'type': 'pong'}));
+        return;
+      }
+      if (type == 'pong') {
+        return;
+      }
+
       // Acknowledge delivery to the backend for observability.
       // We use event_sequence from the EventEnvelope.
       final seq = jsonPayload['event_sequence'] as int?;

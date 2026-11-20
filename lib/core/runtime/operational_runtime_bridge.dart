@@ -14,15 +14,11 @@
 //     → KitchenTicketProjectionNotifier (reactive UI layer)
 //
 import 'dart:async';
-// Presence events additionally flow through:
-//   → PresenceGovernanceRuntime → PresenceHeartbeatManager
-//     → PresenceProjectionNotifier (reactive UI layer)
-//
-// NO feature module may consume websocket payloads directly.
-// NO direct state mutation from realtime payloads.
-
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'domain/runtime_event.dart';
 import 'operational_runtime_hydrator.dart';
 import 'runtime_orchestrator.dart';
@@ -32,6 +28,7 @@ import 'replay_recovery_coordinator.dart';
 import 'invalidation_coordinator.dart';
 import 'projection_rebuild_engine.dart';
 import '../network/realtime_sync_manager.dart';
+import '../network/secure_storage.dart';
 import '../../features/auth/domain/entities/staff_member.dart';
 import '../../features/auth/presentation/state/auth_notifier.dart';
 import '../../features/orders/providers/orders_realtime_provider.dart';
@@ -418,12 +415,60 @@ class OperationalRuntimeBridge {
     }
   }
 
+  Future<Options?> _getAuthOptions() async {
+    try {
+      const secureStorage = SecureLocalStorage();
+      final runtimeToken = await secureStorage.read('runtime_token');
+      final accessToken = await secureStorage.read('access_token');
+      final sessionToken = Supabase.instance.client.auth.currentSession?.accessToken;
+      final authToken = (runtimeToken != null && runtimeToken.isNotEmpty)
+          ? runtimeToken
+          : (accessToken != null && accessToken.isNotEmpty)
+              ? accessToken
+              : sessionToken;
+
+      final prefs = await SharedPreferences.getInstance();
+      var tenantId = prefs.getString('device_tenant_id');
+      if (tenantId == null || tenantId.isEmpty) {
+        tenantId = _ref.read(authNotifierProvider).selectedOrg?.id;
+      }
+
+      final headers = <String, String>{};
+      if (authToken != null && authToken.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $authToken';
+      }
+      if (tenantId != null && tenantId.isNotEmpty) {
+        headers['x-tenant-id'] = tenantId;
+      }
+
+      if (headers.isNotEmpty) {
+        return Options(headers: headers);
+      }
+    } catch (e) {
+      debugPrint('[OperationalRuntimeBridge] Error getting auth options: $e');
+    }
+    return null;
+  }
+
   /// Fetches complete order details from the backend API and merges them into
   /// the payload BEFORE the alert is enqueued. This ensures the popup always
   /// renders with table number, items, and total on first display.
   Future<void> _enrichAlertPayload(Map<String, dynamic> payload) async {
     final orderId = (payload['orderId'] ?? payload['id'])?.toString();
     if (orderId == null || orderId.isEmpty) return;
+
+    // Pre-populate tableLabel from local TableGrid cache if available
+    final initialTableId = (payload['tableId'] ?? payload['table_id'])?.toString();
+    if ((payload['tableLabel'] == null || payload['tableLabel'] == 'N/A') && initialTableId != null) {
+      final tables = _ref.read(tableGridNotifierProvider).value?.tables ?? [];
+      final matched = tables.where((t) => t.id == initialTableId).firstOrNull;
+      if (matched != null) {
+        final l = matched.label.trim();
+        final resolvedLabel = l.toLowerCase().startsWith('table') ? l : 'Table $l';
+        payload['tableLabel'] = resolvedLabel;
+        payload['tableNumber'] = resolvedLabel;
+      }
+    }
 
     // If the realtime payload is already fully populated, skip the API fetch.
     final existingItems = payload['items'] as List?;
@@ -441,7 +486,8 @@ class OperationalRuntimeBridge {
       }
       try {
         final dio = _ref.read(dioClientProvider);
-        final response = await dio.get('/api/v1/orders/$orderId');
+        final options = await _getAuthOptions();
+        final response = await dio.get('/api/v1/orders/$orderId', options: options);
 
         if (response.statusCode == 200 && (response.data['success'] == true || response.data['status'] == 'success')) {
           final orderData = (response.data['data']?['order'] ??
@@ -465,9 +511,24 @@ class OperationalRuntimeBridge {
           final totalMinor = (totalRupees * 100).round();
 
           // Extract table label — backend resolves display_name or table_number
-          final tableLabel = (orderData['table_number'] ?? orderData['table_label'])?.toString() ?? '';
+          var tableLabel = (orderData['table_label'] ??
+                              orderData['tables']?['display_name'] ??
+                              orderData['tables']?['table_number'] ??
+                              orderData['table_number'])?.toString() ?? '';
 
-          if (alertItems.isNotEmpty || totalMinor > 0) {
+          if (tableLabel.isEmpty || tableLabel == 'Table' || tableLabel == 'N/A') {
+            final tableId = (orderData['table_id'] ?? orderData['tableId'] ?? payload['table_id'] ?? payload['tableId'])?.toString();
+            if (tableId != null) {
+              final tables = _ref.read(tableGridNotifierProvider).value?.tables ?? [];
+              final matched = tables.where((t) => t.id == tableId).firstOrNull;
+              if (matched != null) {
+                final l = matched.label.trim();
+                tableLabel = l.toLowerCase().startsWith('table') ? l : 'Table $l';
+              }
+            }
+          }
+
+          if (alertItems.isNotEmpty || totalMinor > 0 || (tableLabel.isNotEmpty && tableLabel != 'N/A')) {
             payload['items'] = alertItems;
             payload['itemCount'] = alertItems.length;
             payload['totalAmountMinor'] = totalMinor;
@@ -502,6 +563,9 @@ class OperationalRuntimeBridge {
       case 'table_update':
       case 'table.updated':
       case 'table_updated':
+      case 'table_vacated':
+      case 'table.vacated':
+      case 'TABLE_VACATED':
         return RuntimeEventType.tableUpdate;
       case 'table_delete':
         return RuntimeEventType.tableDelete;
